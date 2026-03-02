@@ -55,6 +55,16 @@
     server: {
       port: 3000,
       open: true,
-  allowedHosts: ['myarmax.com', '.myarmax.com'],
+      allowedHosts: ['myarmax.com', '.myarmax.com'],
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: 'ws://localhost:8000',
+          ws: true,
+        },
+      },
     },
   });

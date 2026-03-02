@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, FileText, Youtube, Clock, Settings, LogOut, Plus, Search, Bell, Brain, Sparkles, Layers, GraduationCap, Globe, User, X, Check, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, FileText, Youtube, Clock, Settings, LogOut, Plus, Search, Bell, Brain, Sparkles, Layers, GraduationCap, Globe, User, X, Check, CheckCircle2, AudioLines } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import type { ViewState } from '../../App';
@@ -101,11 +101,17 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
             active={currentView === 'exam'} 
             onClick={() => onNavigate('exam')}
           />
-          <SidebarItem 
-            icon={<Globe size={18} />} 
-            label="Languages" 
-            active={currentView === 'languages'} 
+          <SidebarItem
+            icon={<Globe size={18} />}
+            label="Languages"
+            active={currentView === 'languages'}
             onClick={() => onNavigate('languages')}
+          />
+          <SidebarItem
+            icon={<AudioLines size={18} />}
+            label="Voice Teacher"
+            active={currentView === 'voice'}
+            onClick={() => onNavigate('voice')}
           />
 
           <div className="pt-8 pb-2">

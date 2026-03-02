@@ -5,7 +5,7 @@ import {
   ArrowLeft, FileText, Youtube, MessageSquare, Brain, CheckCircle2, Headphones, MonitorPlay,
   Play, Sparkles, Download, Share2, Layers,
   Link as LinkIcon, Edit3, X, Archive, Loader2,
-  AlertCircle, RotateCcw
+  AlertCircle, RotateCcw, AudioLines
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -21,6 +21,7 @@ import type { Material, TutorMessage, Flashcard, MaterialSummary } from '../../t
 import { QuizTab } from './tabs/QuizTab';
 import { PodcastTab } from './tabs/PodcastTab';
 import { SlidesTab } from './tabs/SlidesTab';
+import { VoiceChatTab } from './tabs/VoiceChatTab';
 
 import { ViewState } from '../../App';
 
@@ -106,6 +107,7 @@ export function ProjectDetailView({ projectId: propProjectId, onBack: propOnBack
             { id: 'quiz', label: 'Quiz', icon: <CheckCircle2 size={14} /> },
             { id: 'podcast', label: 'Podcast', icon: <Headphones size={14} /> },
             { id: 'slides', label: 'Slides', icon: <MonitorPlay size={14} /> },
+            { id: 'voice', label: 'Voice Chat', icon: <AudioLines size={14} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -199,6 +201,7 @@ export function ProjectDetailView({ projectId: propProjectId, onBack: propOnBack
             )}
             {activeTab === 'podcast' && <PodcastTab material={material} onRefetch={refetchMaterial} />}
             {activeTab === 'slides' && <SlidesTab material={material} onRefetch={refetchMaterial} />}
+            {activeTab === 'voice' && <VoiceChatTab material={material} />}
           </div>
         </div>
 

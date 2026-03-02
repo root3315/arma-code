@@ -15,11 +15,12 @@ import { ProjectDetailView } from './components/dashboard/ProjectDetailView';
 import { FlashcardsView } from './components/dashboard/FlashcardsView';
 import { LanguagesView } from './components/dashboard/LanguagesView';
 import { ExamView } from './components/dashboard/ExamView';
+import { VoiceTeacherView } from './components/dashboard/VoiceTeacherView';
 import { UploadModal } from './components/shared/UploadModal';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-export type ViewState = 'dashboard' | 'activity' | 'library' | 'flashcards' | 'languages' | 'exam' | 'profile' | 'materials';
+export type ViewState = 'dashboard' | 'activity' | 'library' | 'flashcards' | 'languages' | 'exam' | 'voice' | 'profile' | 'materials';
 
 function LandingPageWrapper() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ function DashboardWrapper() {
   const getCurrentView = (): ViewState => {
     const path = location.pathname.split('/dashboard/')[1] || '';
     if (path.startsWith('materials')) return 'materials';
+    if (path.startsWith('voice')) return 'voice';
     if (path === '' || path === '/') return 'dashboard';
     return path.split('/')[0] as ViewState;
   };
@@ -87,6 +89,7 @@ function DashboardWrapper() {
           <Route path="flashcards/:deckId" element={<FlashcardsView />} />
           <Route path="languages" element={<LanguagesView />} />
           <Route path="exam" element={<ExamView />} />
+          <Route path="voice" element={<VoiceTeacherView />} />
           <Route path="profile" element={<ProfileView />} />
           <Route path="materials/:id" element={<ProjectDetailView />} />
         </Routes>
