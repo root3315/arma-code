@@ -179,7 +179,8 @@ class MaterialProcessingService:
                 option_b=q_data["option_b"],
                 option_c=q_data["option_c"],
                 option_d=q_data["option_d"],
-                correct_option=q_data["correct_option"]
+                correct_option=q_data["correct_option"],
+                explanation=q_data.get("explanation"),
             )
             self.session.add(question)
 

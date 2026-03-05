@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -19,6 +19,7 @@ class QuizQuestion(Base):
     option_c = Column(Text, nullable=False)
     option_d = Column(Text, nullable=False)
     correct_option = Column(Text, nullable=False)  # Full text of correct answer
+    explanation = Column(Text, nullable=True)  # Short explanation for the correct answer
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

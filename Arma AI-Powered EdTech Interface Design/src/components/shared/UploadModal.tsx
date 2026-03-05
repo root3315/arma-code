@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Upload, Youtube, Link, FileText, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -8,16 +8,43 @@ interface UploadModalProps {
   onClose: () => void;
   onUploadStart: (type: 'PDF' | 'YouTube' | 'Link', title: string) => void;
   onSuccess?: () => void; // Callback для обновления списка материалов
+  initialTab?: 'upload' | 'youtube' | 'link';
+  initialInputValue?: string;
+  initialFile?: File | null;
+  autoUpload?: boolean;
 }
 
-export function UploadModal({ onClose, onUploadStart, onSuccess }: UploadModalProps) {
+export function UploadModal({
+  onClose,
+  onUploadStart,
+  onSuccess,
+  initialTab,
+  initialInputValue,
+  initialFile,
+  autoUpload = false,
+}: UploadModalProps) {
   const [activeTab, setActiveTab] = useState<'upload' | 'youtube' | 'link'>('upload');
   const [dragActive, setDragActive] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoUploadTriggered = useRef(false);
   
   const { createMaterial, creating } = useCreateMaterial();
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+    if (typeof initialInputValue === 'string') {
+      setInputValue(initialInputValue);
+    }
+    if (initialFile) {
+      setSelectedFile(initialFile);
+      setActiveTab('upload');
+    }
+    autoUploadTriggered.current = false;
+  }, [initialTab, initialInputValue, initialFile]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -72,6 +99,14 @@ export function UploadModal({ onClose, onUploadStart, onSuccess }: UploadModalPr
       toast.error('Failed to upload PDF');
     }
   };
+
+  useEffect(() => {
+    if (!autoUpload || !selectedFile || creating || autoUploadTriggered.current) {
+      return;
+    }
+    autoUploadTriggered.current = true;
+    void handleUploadPDF();
+  }, [autoUpload, selectedFile, creating]);
 
   const handleSubmitYouTube = async () => {
     if (!inputValue) return;

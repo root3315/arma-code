@@ -29,6 +29,12 @@ from app.schemas.common import MessageResponse
 router = APIRouter()
 
 
+def _fallback_explanation(question: QuizQuestion) -> str:
+    if question.explanation and question.explanation.strip():
+        return question.explanation.strip()
+    return f"Correct answer: {question.correct_option}"
+
+
 @router.get("/materials/{material_id}/quiz", response_model=QuizListWithAnswersResponse)
 async def get_quiz_questions(
     material_id: UUID,
@@ -68,6 +74,43 @@ async def get_quiz_questions(
     return {"questions": questions, "total": total}
 
 
+@router.get("/materials/{material_id}/quiz/exam", response_model=QuizListResponse)
+async def get_exam_quiz_questions(
+    material_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get quiz questions for exam mode without exposing correct answers.
+
+    Args:
+        material_id: Material ID
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        QuizListResponse: List of quiz questions without correct answers
+
+    Raises:
+        HTTPException: If material not found or access denied
+    """
+    await verify_material_owner(material_id, current_user, db)
+
+    result = await db.execute(
+        select(QuizQuestion)
+        .where(QuizQuestion.material_id == material_id)
+        .order_by(QuizQuestion.created_at.asc())
+    )
+    questions = result.scalars().all()
+
+    count_result = await db.execute(
+        select(func.count()).select_from(QuizQuestion).where(QuizQuestion.material_id == material_id)
+    )
+    total = count_result.scalar()
+
+    return {"questions": questions, "total": total}
+
+
 @router.post("/quiz", response_model=QuizQuestionResponse, status_code=status.HTTP_201_CREATED)
 async def create_quiz_question(
     question_data: QuizQuestionCreate,
@@ -97,7 +140,8 @@ async def create_quiz_question(
         option_b=question_data.option_b,
         option_c=question_data.option_c,
         option_d=question_data.option_d,
-        correct_option=question_data.correct_option
+        correct_option=question_data.correct_option,
+        explanation=question_data.explanation,
     )
 
     db.add(new_question)
@@ -183,9 +227,11 @@ async def check_answer(
 
     return {
         "question_id": question.id,
+        "question_text": question.question,
         "is_correct": is_correct,
         "correct_option": question.correct_option,
-        "selected_option": answer_data.selected_option
+        "selected_option": answer_data.selected_option,
+        "explanation": _fallback_explanation(question),
     }
 
 
@@ -241,9 +287,11 @@ async def submit_quiz_attempt(
 
         results.append({
             "question_id": question.id,
+            "question_text": question.question,
             "is_correct": is_correct,
             "correct_option": question.correct_option,
-            "selected_option": answer.selected_option
+            "selected_option": answer.selected_option,
+            "explanation": _fallback_explanation(question),
         })
 
     # Calculate score
