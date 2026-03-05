@@ -50,12 +50,15 @@ class QuizService:
             raise ValueError(f"Question {question_id} not found")
 
         is_correct = selected_option == question.correct_option
+        explanation = question.explanation.strip() if question.explanation else f"Correct answer: {question.correct_option}"
 
         return QuizAnswerResponse(
             question_id=question_id,
+            question_text=question.question,
             is_correct=is_correct,
             correct_option=question.correct_option,
             selected_option=selected_option,
+            explanation=explanation,
         )
 
     async def check_quiz_attempt(
@@ -241,6 +244,7 @@ class QuizService:
                 selected=answer.selected_option,
                 correct=result.is_correct,
                 correct_option=result.correct_option,
+                explanation=result.explanation,
             )
             answer_details.append(answer_detail)
 

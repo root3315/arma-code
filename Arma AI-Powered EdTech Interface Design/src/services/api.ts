@@ -11,12 +11,15 @@ import type {
   Flashcard,
   CreateFlashcardRequest,
   QuizQuestion,
+  ExamQuizQuestion,
   QuizResult,
   SubmitQuizRequest,
+  QuizAttemptSaveRequest,
   TutorMessage,
   SendTutorMessageRequest,
   TutorHistoryResponse,
   ApiError,
+  MessageResponse,
   SearchRequest,
   SearchResponse,
 } from '../types/api';
@@ -263,13 +266,22 @@ export const quizApi = {
     return response.data.questions;
   },
 
+  getExamQuestions: async (materialId: string): Promise<ExamQuizQuestion[]> => {
+    const response = await apiClient.get<{ questions: ExamQuizQuestion[]; total: number }>(`/materials/${materialId}/quiz/exam`);
+    return response.data.questions;
+  },
+
   submit: async (data: SubmitQuizRequest): Promise<QuizResult> => {
     const response = await apiClient.post<QuizResult>('/quiz/attempt', data);
     return response.data;
   },
 
-  regenerate: async (materialId: string): Promise<QuizQuestion[]> => {
-    const response = await apiClient.post<QuizQuestion[]>(`/materials/${materialId}/regenerate/quiz`);
+  saveAttempt: async (data: QuizAttemptSaveRequest): Promise<void> => {
+    await apiClient.post('/quiz/attempts/save', data);
+  },
+
+  regenerate: async (materialId: string, count: number = 10): Promise<MessageResponse> => {
+    const response = await apiClient.post<MessageResponse>(`/materials/${materialId}/regenerate/quiz?count=${count}`);
     return response.data;
   },
 };

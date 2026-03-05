@@ -1,14 +1,11 @@
 """
 Service для обработки материалов (PDF/YouTube) и генерации AI контента
 """
-import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Optional
 from uuid import UUID
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update
 
 from app.infrastructure.database.models.material import (
     Material,
@@ -30,17 +27,19 @@ class MaterialProcessingService:
     Сервис для обработки материалов и генерации AI контента.
 
     Этапы обработки:
-    1. Параллельная генерация AI контента (summary, notes, flashcards, quiz)
-    2. Atomic сохранение всех результатов в одной транзакции
-    3. Создание векторных embeddings для RAG
-    4. Завершение обработки
+    1. Извлечение текста (PDF/YouTube transcription)
+    2. Нормализация текста
+    3. Генерация AI контента (summary, notes, flashcards, quiz) параллельно
+    4. Создание embeddings для RAG
     """
 
     def __init__(self, session: AsyncSession):
         self.session = session
         self.ai_service = OpenAIService()
 
-    async def process_material(self, material_id: UUID, full_text: str) -> None:
+    async def process_material(
+        self, material_id: UUID, full_text: str
+    ) -> None:
         """
         Основная функция обработки материала.
 
@@ -50,136 +49,54 @@ class MaterialProcessingService:
 
         Steps:
             1. Update status to PROCESSING
-            2. Generate summary, notes, flashcards, quiz IN PARALLEL
-            3. Save all results in ONE atomic transaction
-            4. Create embeddings
-            5. Update status to COMPLETED
+            2. Generate summary
+            3. Generate notes
+            4. Generate flashcards
+            5. Generate quiz
+            6. Create embeddings
+            7. Update status to COMPLETED
         """
         try:
-            # 1. Параллельная генерация AI контента
-            logger.info(
-                "Starting parallel AI generation",
-                extra={"material_id": str(material_id)}
-            )
-            await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 35)
+            # 1. Пропускаем сброс к 10%, так как после экстракции у нас уже 30%
+            # await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 10)
 
-            results = await asyncio.gather(
-                self.ai_service.generate_summary(full_text),
-                self.ai_service.generate_notes(full_text),
-                self.ai_service.generate_flashcards(full_text, count=15),
-                self.ai_service.generate_quiz(full_text, count=10),
-                return_exceptions=True,
-            )
+            # 2. Генерация summary
+            logger.info(f"[MaterialProcessing] Generating summary for {material_id}")
+            summary_text = await self.ai_service.generate_summary(full_text)
+            await self._save_summary(material_id, summary_text)
+            await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 45)
 
-            summary_text, notes_text, flashcards_data, quiz_data = results
+            # 3. Генерация notes
+            logger.info(f"[MaterialProcessing] Generating notes for {material_id}")
+            notes_text = await self.ai_service.generate_notes(full_text)
+            await self._save_notes(material_id, notes_text)
+            await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 60)
 
-            # Проверить на ошибки
-            for name, result in [
-                ("summary", summary_text),
-                ("notes", notes_text),
-                ("flashcards", flashcards_data),
-                ("quiz", quiz_data),
-            ]:
-                if isinstance(result, Exception):
-                    logger.error(
-                        "AI generation failed",
-                        extra={"stage": name, "error": str(result), "material_id": str(material_id)}
-                    )
-                    raise result
+            # 4. Генерация flashcards
+            logger.info(f"[MaterialProcessing] Generating flashcards for {material_id}")
+            flashcards_data = await self.ai_service.generate_flashcards(full_text, count=15)
+            await self._save_flashcards(material_id, flashcards_data)
+            await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 75)
 
-            # 2. Атомарное сохранение всех результатов в ОДНОЙ транзакции
-            logger.info("Saving all AI results atomically", extra={"material_id": str(material_id)})
-            await self._save_all_results(
-                material_id, summary_text, notes_text, flashcards_data, quiz_data
-            )
+            # 5. Генерация quiz
+            logger.info(f"[MaterialProcessing] Generating quiz for {material_id}")
+            quiz_data = await self.ai_service.generate_quiz(full_text, count=10)
+            await self._save_quiz(material_id, quiz_data)
             await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 85)
 
-            # 3. Создание embeddings
-            logger.info("Creating embeddings", extra={"material_id": str(material_id)})
+            # 6. Создание embeddings
+            logger.info(f"[MaterialProcessing] Creating embeddings for {material_id}")
             await self._create_embeddings(material_id, full_text)
             await self._update_processing_status(material_id, ProcessingStatus.PROCESSING, 95)
 
-            # 4. Завершено
+            # 7. Завершено!
             await self._update_processing_status(material_id, ProcessingStatus.COMPLETED, 100)
-            logger.info("Processing completed", extra={"material_id": str(material_id)})
+            logger.info(f"[MaterialProcessing] Successfully processed material {material_id}")
 
         except Exception as e:
-            logger.error(
-                "Processing failed",
-                extra={"material_id": str(material_id), "error": str(e)}
-            )
+            logger.error(f"[MaterialProcessing] Error processing material {material_id}: {str(e)}")
             await self._update_processing_status(material_id, ProcessingStatus.FAILED, 0)
             raise
-
-    async def _save_all_results(
-        self,
-        material_id: UUID,
-        summary_text: str,
-        notes_text: str,
-        flashcards: List[Dict],
-        quiz_questions: List[Dict],
-    ) -> None:
-        """
-        Save all AI-generated content in a SINGLE atomic transaction.
-
-        Using a single begin() block prevents partial saves where, for example,
-        summary is saved but flashcards are not (e.g. due to a mid-save error).
-        """
-        async with self.session.begin():
-            # ── Summary ───────────────────────────────────────────────────────
-            result = await self.session.execute(
-                select(MaterialSummary).where(MaterialSummary.material_id == material_id)
-            )
-            existing_summary = result.scalar_one_or_none()
-            if existing_summary:
-                existing_summary.summary = summary_text
-            else:
-                self.session.add(MaterialSummary(material_id=material_id, summary=summary_text))
-
-            # ── Notes ─────────────────────────────────────────────────────────
-            result = await self.session.execute(
-                select(MaterialNotes).where(MaterialNotes.material_id == material_id)
-            )
-            existing_notes = result.scalar_one_or_none()
-            if existing_notes:
-                existing_notes.notes = notes_text
-            else:
-                self.session.add(MaterialNotes(material_id=material_id, notes=notes_text))
-
-            # ── Flashcards (replace old ones) ─────────────────────────────────
-            await self.session.execute(
-                delete(Flashcard).where(Flashcard.material_id == material_id)
-            )
-            for card in flashcards:
-                self.session.add(Flashcard(
-                    material_id=material_id,
-                    question=card["question"],
-                    answer=card["answer"],
-                ))
-
-            # ── Quiz questions (replace old ones) ─────────────────────────────
-            await self.session.execute(
-                delete(QuizQuestion).where(QuizQuestion.material_id == material_id)
-            )
-            for q in quiz_questions:
-                self.session.add(QuizQuestion(
-                    material_id=material_id,
-                    question=q["question"],
-                    option_a=q["option_a"],
-                    option_b=q["option_b"],
-                    option_c=q["option_c"],
-                    option_d=q["option_d"],
-                    correct_option=q["correct_option"],
-                ))
-
-        logger.info(
-            "Saved all results atomically",
-            extra={
-                "material_id": str(material_id),
-                "flashcards": len(flashcards),
-                "quiz_questions": len(quiz_questions),
-            }
-        )
 
     async def _update_processing_status(
         self, material_id: UUID, status: ProcessingStatus, progress: int
@@ -192,137 +109,161 @@ class MaterialProcessingService:
         )
         await self.session.commit()
 
+    async def _save_summary(self, material_id: UUID, summary_text: str):
+        """Сохранить summary в БД."""
+        # Проверить существует ли уже
+        result = await self.session.execute(
+            select(MaterialSummary).where(MaterialSummary.material_id == material_id)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.summary = summary_text
+        else:
+            new_summary = MaterialSummary(
+                material_id=material_id,
+                summary=summary_text
+            )
+            self.session.add(new_summary)
+
+        await self.session.commit()
+        logger.info(f"[MaterialProcessing] Saved summary ({len(summary_text)} chars)")
+
+    async def _save_notes(self, material_id: UUID, notes_text: str):
+        """Сохранить notes в БД."""
+        result = await self.session.execute(
+            select(MaterialNotes).where(MaterialNotes.material_id == material_id)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.notes = notes_text
+        else:
+            new_notes = MaterialNotes(
+                material_id=material_id,
+                notes=notes_text
+            )
+            self.session.add(new_notes)
+
+        await self.session.commit()
+        logger.info(f"[MaterialProcessing] Saved notes ({len(notes_text)} chars)")
+
+    async def _save_flashcards(self, material_id: UUID, flashcards: List[Dict]):
+        """Сохранить flashcards в БД."""
+        # Удалить старые
+        await self.session.execute(
+            select(Flashcard).where(Flashcard.material_id == material_id)
+        )
+        # Note: В production лучше использовать soft delete или version control
+
+        # Создать новые
+        for card_data in flashcards:
+            flashcard = Flashcard(
+                material_id=material_id,
+                question=card_data["question"],
+                answer=card_data["answer"]
+            )
+            self.session.add(flashcard)
+
+        await self.session.commit()
+        logger.info(f"[MaterialProcessing] Saved {len(flashcards)} flashcards")
+
+    async def _save_quiz(self, material_id: UUID, quiz_questions: List[Dict]):
+        """Сохранить quiz вопросы в БД."""
+        # Создать вопросы
+        for q_data in quiz_questions:
+            question = QuizQuestion(
+                material_id=material_id,
+                question=q_data["question"],
+                option_a=q_data["option_a"],
+                option_b=q_data["option_b"],
+                option_c=q_data["option_c"],
+                option_d=q_data["option_d"],
+                correct_option=q_data["correct_option"],
+                explanation=q_data.get("explanation"),
+            )
+            self.session.add(question)
+
+        await self.session.commit()
+        logger.info(f"[MaterialProcessing] Saved {len(quiz_questions)} quiz questions")
+
     async def _create_embeddings(self, material_id: UUID, full_text: str):
         """
         Создать векторные embeddings для RAG.
 
-        Разбивает текст на семантические чанки и создает embedding для каждого.
+        Разбивает текст на чанки и создает embedding для каждого.
         """
+        # Разбить текст на чанки
         chunks = self._split_into_chunks(full_text, settings.EMBEDDING_CHUNK_SIZE)
 
         if not chunks:
-            logger.warning("No chunks to embed", extra={"material_id": str(material_id)})
+            logger.warning(f"[MaterialProcessing] No chunks to embed for {material_id}")
             return
 
-        logger.info(
-            "Creating embeddings batch",
-            extra={"material_id": str(material_id), "chunks": len(chunks)}
-        )
+        # Создать embeddings batch
+        logger.info(f"[MaterialProcessing] Creating embeddings for {len(chunks)} chunks")
         embeddings = await self.ai_service.create_embeddings_batch(chunks)
 
-        # Replace old embeddings atomically
-        async with self.session.begin():
-            await self.session.execute(
-                delete(MaterialEmbedding).where(MaterialEmbedding.material_id == material_id)
+        # Сохранить в БД
+        for idx, (chunk_text, embedding_vector) in enumerate(zip(chunks, embeddings)):
+            material_embedding = MaterialEmbedding(
+                material_id=material_id,
+                chunk_index=idx,
+                chunk_text=chunk_text,
+                embedding=embedding_vector
             )
-            for idx, (chunk_text, embedding_vector) in enumerate(zip(chunks, embeddings)):
-                self.session.add(MaterialEmbedding(
-                    material_id=material_id,
-                    chunk_index=idx,
-                    chunk_text=chunk_text,
-                    embedding=embedding_vector,
-                ))
+            self.session.add(material_embedding)
 
-        logger.info("Embeddings saved", extra={"material_id": str(material_id), "count": len(chunks)})
+        await self.session.commit()
+        logger.info(f"[MaterialProcessing] Saved {len(chunks)} embeddings")
 
     def _split_into_chunks(self, text: str, chunk_size: int) -> List[str]:
         """
-        Split text into semantic chunks for embeddings.
-
-        Strategy:
-          1. Split on double newlines (paragraph boundaries) to avoid cutting
-             sentences mid-way.
-          2. If a paragraph is longer than chunk_size, fall back to
-             sentence-boundary splitting.
-          3. Merge short adjacent paragraphs to fill chunks efficiently.
+        Разбить текст на чанки для embeddings.
 
         Args:
-            text: Full document text
-            chunk_size: Target chunk size in characters
+            text: Полный текст
+            chunk_size: Размер чанка в символах
 
         Returns:
-            List of non-empty chunk strings
+            List[str]: Список чанков
         """
         if not text:
             return []
 
-        # Step 1 – split into paragraphs
-        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        chunks = []
+        current_pos = 0
+        text_length = len(text)
 
-        chunks: List[str] = []
-        current_chunk = ""
+        while current_pos < text_length:
+            # Взять чанк
+            end_pos = current_pos + chunk_size
 
-        for para in paragraphs:
-            # If adding this paragraph keeps us within budget → accumulate
-            if len(current_chunk) + len(para) + 2 <= chunk_size:
-                current_chunk = (current_chunk + "\n\n" + para).lstrip()
-            else:
-                # Flush current chunk if non-empty
-                if current_chunk:
-                    chunks.append(current_chunk)
-                    current_chunk = ""
+            # Попытаться найти конец предложения
+            if end_pos < text_length:
+                # Найти ближайшую точку, восклицательный или вопросительный знак
+                for i in range(end_pos, current_pos + chunk_size // 2, -1):
+                    if text[i] in ".!?\n":
+                        end_pos = i + 1
+                        break
 
-                # Paragraph alone fits → start new chunk
-                if len(para) <= chunk_size:
-                    current_chunk = para
-                else:
-                    # Large paragraph — split on sentence boundaries
-                    sub_chunks = self._split_by_sentences(para, chunk_size)
-                    if sub_chunks:
-                        # Last sub-chunk becomes the new current chunk
-                        chunks.extend(sub_chunks[:-1])
-                        current_chunk = sub_chunks[-1]
-
-        if current_chunk:
-            chunks.append(current_chunk)
-
-        logger.debug("Text split into chunks", extra={"chunks": len(chunks)})
-        return chunks
-
-    def _split_by_sentences(self, text: str, chunk_size: int) -> List[str]:
-        """Split a long paragraph into sentence-boundary-aware chunks."""
-        sentence_endings = ".!?\n"
-        chunks: List[str] = []
-        start = 0
-        text_len = len(text)
-
-        while start < text_len:
-            end = start + chunk_size
-            if end >= text_len:
-                chunks.append(text[start:].strip())
-                break
-
-            # Walk back from end to find a sentence boundary
-            boundary = end
-            for i in range(end, max(start + chunk_size // 2, start), -1):
-                if text[i] in sentence_endings:
-                    boundary = i + 1
-                    break
-
-            chunk = text[start:boundary].strip()
+            chunk = text[current_pos:end_pos].strip()
             if chunk:
                 chunks.append(chunk)
-            start = boundary
 
+            current_pos = end_pos
+
+        logger.debug(f"[MaterialProcessing] Split text into {len(chunks)} chunks")
         return chunks
-
-    # ── Regeneration helpers ─────────────────────────────────────────────────
 
     async def regenerate_summary(self, material_id: UUID) -> str:
         """Регенерировать summary для материала."""
         material = await self._get_material(material_id)
         if not material.full_text:
             raise ValueError("Material has no text to process")
+
         summary_text = await self.ai_service.generate_summary(material.full_text)
-        async with self.session.begin():
-            result = await self.session.execute(
-                select(MaterialSummary).where(MaterialSummary.material_id == material_id)
-            )
-            existing = result.scalar_one_or_none()
-            if existing:
-                existing.summary = summary_text
-            else:
-                self.session.add(MaterialSummary(material_id=material_id, summary=summary_text))
+        await self._save_summary(material_id, summary_text)
         return summary_text
 
     async def regenerate_notes(self, material_id: UUID) -> str:
@@ -330,16 +271,9 @@ class MaterialProcessingService:
         material = await self._get_material(material_id)
         if not material.full_text:
             raise ValueError("Material has no text to process")
+
         notes_text = await self.ai_service.generate_notes(material.full_text)
-        async with self.session.begin():
-            result = await self.session.execute(
-                select(MaterialNotes).where(MaterialNotes.material_id == material_id)
-            )
-            existing = result.scalar_one_or_none()
-            if existing:
-                existing.notes = notes_text
-            else:
-                self.session.add(MaterialNotes(material_id=material_id, notes=notes_text))
+        await self._save_notes(material_id, notes_text)
         return notes_text
 
     async def regenerate_flashcards(self, material_id: UUID, count: int = 15) -> int:
@@ -347,17 +281,9 @@ class MaterialProcessingService:
         material = await self._get_material(material_id)
         if not material.full_text:
             raise ValueError("Material has no text to process")
+
         flashcards_data = await self.ai_service.generate_flashcards(material.full_text, count)
-        async with self.session.begin():
-            await self.session.execute(
-                delete(Flashcard).where(Flashcard.material_id == material_id)
-            )
-            for card in flashcards_data:
-                self.session.add(Flashcard(
-                    material_id=material_id,
-                    question=card["question"],
-                    answer=card["answer"],
-                ))
+        await self._save_flashcards(material_id, flashcards_data)
         return len(flashcards_data)
 
     async def regenerate_quiz(self, material_id: UUID, count: int = 10) -> int:
@@ -365,21 +291,9 @@ class MaterialProcessingService:
         material = await self._get_material(material_id)
         if not material.full_text:
             raise ValueError("Material has no text to process")
+
         quiz_data = await self.ai_service.generate_quiz(material.full_text, count)
-        async with self.session.begin():
-            await self.session.execute(
-                delete(QuizQuestion).where(QuizQuestion.material_id == material_id)
-            )
-            for q in quiz_data:
-                self.session.add(QuizQuestion(
-                    material_id=material_id,
-                    question=q["question"],
-                    option_a=q["option_a"],
-                    option_b=q["option_b"],
-                    option_c=q["option_c"],
-                    option_d=q["option_d"],
-                    correct_option=q["correct_option"],
-                ))
+        await self._save_quiz(material_id, quiz_data)
         return len(quiz_data)
 
     async def _get_material(self, material_id: UUID) -> Material:

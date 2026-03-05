@@ -82,9 +82,11 @@ const getRandomSuggestions = (count: number = 3): string[] => {
 interface DashboardHomeProps {
   onMaterialClick: (id: string) => void;
   onUpload: () => void;
+  prefillQuery?: string;
+  onPrefillConsumed?: () => void;
 }
 
-export function DashboardHome({ onMaterialClick, onUpload }: DashboardHomeProps) {
+export function DashboardHome({ onMaterialClick, onUpload, prefillQuery = '', onPrefillConsumed }: DashboardHomeProps) {
   const [inputValue, setInputValue] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +105,17 @@ export function DashboardHome({ onMaterialClick, onUpload }: DashboardHomeProps)
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const preparedQuery = prefillQuery.trim();
+    if (!preparedQuery) {
+      return;
+    }
+
+    setInputValue(preparedQuery);
+    void handleSearch(preparedQuery);
+    onPrefillConsumed?.();
+  }, [prefillQuery]);
 
   // Manual refresh suggestions
   const refreshSuggestions = useCallback(() => {

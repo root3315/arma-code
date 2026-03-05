@@ -103,11 +103,22 @@ export interface QuizQuestion {
   option_c: string;
   option_d: string;
   correct_option: string;  // Full text of correct answer
+  explanation?: string | null;
   created_at: string;
   // Helper properties for easier rendering
   options?: string[];
   correct_answer?: number;
-  explanation?: string;
+}
+
+export interface ExamQuizQuestion {
+  id: string;
+  material_id: string;
+  question: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  created_at: string;
 }
 
 export interface QuizAttempt {
@@ -138,8 +149,25 @@ export interface QuizResult {
   score_percentage: number;
   results: Array<{
     question_id: string;
+    question_text: string;
     is_correct: boolean;
+    selected_option: string;
     correct_option: string;
+    explanation: string;
+  }>;
+}
+
+export interface QuizAttemptSaveRequest {
+  material_id: string;
+  score: number;
+  total_questions: number;
+  percentage: number;
+  answers: Array<{
+    question_id: string;
+    selected: string;
+    correct: boolean;
+    correct_option: string;
+    explanation?: string;
   }>;
 }
 
@@ -166,6 +194,10 @@ export interface TutorHistoryResponse {
 // API Response types
 export interface ApiError {
   detail: string;
+}
+
+export interface MessageResponse {
+  message: string;
 }
 
 export interface PaginatedResponse<T> {

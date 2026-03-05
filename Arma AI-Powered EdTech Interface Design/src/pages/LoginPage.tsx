@@ -7,6 +7,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
 import { AICore } from '../components/shared/AICore';
+import { hasLandingIntent } from '../utils/landingIntent';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export const LoginPage: React.FC = () => {
     try {
       await login(formData);
       toast.success('Добро пожаловать!');
-      navigate('/dashboard');
+      navigate(hasLandingIntent() ? '/dashboard?source=landing' : '/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Ошибка входа. Проверьте email и пароль.';
       toast.error(message);

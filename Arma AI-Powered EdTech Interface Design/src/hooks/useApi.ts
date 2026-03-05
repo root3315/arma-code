@@ -9,6 +9,7 @@ import type {
   Material,
   Flashcard,
   QuizQuestion,
+  ExamQuizQuestion,
   TutorMessage,
   MaterialSummary,
   MaterialNotes
@@ -232,6 +233,40 @@ export function useQuizQuestions(materialId: string | null) {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load quiz questions');
 
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [materialId]);
+
+  return { questions, loading, error, refetch: fetchQuestions };
+}
+
+/**
+ * Hook для загрузки quiz вопросов в exam режиме (без correct_option)
+ */
+export function useExamQuizQuestions(materialId: string | null) {
+  const [questions, setQuestions] = useState<ExamQuizQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchQuestions = async () => {
+    if (!materialId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await quizApi.getExamQuestions(materialId);
+      setQuestions(data);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to load exam questions');
+      console.error('Error fetching exam questions:', err);
     } finally {
       setLoading(false);
     }
