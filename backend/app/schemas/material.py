@@ -81,6 +81,7 @@ class MaterialResponse(TimestampSchema):
     """Schema for material list response."""
     id: UUID
     user_id: UUID
+    project_id: Optional[UUID] = None
     title: str
     type: MaterialType
     processing_status: ProcessingStatus

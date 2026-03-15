@@ -7,10 +7,14 @@ All materials in a batch are processed together to generate unified AI content.
 import os
 import uuid
 import logging
+from io import BytesIO
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime
 
+import httpx
 from fastapi import (
     APIRouter,
     Depends,
@@ -21,9 +25,9 @@ from fastapi import (
     status,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
-from app.api.dependencies import get_db, get_current_user
+from app.api.dependencies import get_db, get_current_user, get_current_active_user
 
 logger = logging.getLogger(__name__)
 from app.infrastructure.database.models.material import (
@@ -48,6 +52,7 @@ from app.schemas.material import (
     TutorMessageRequest,
 )
 from app.infrastructure.queue.tasks import process_material_batch_task
+from tenacity import RetryError
 
 router = APIRouter(prefix="/materials", tags=["Materials"])
 
@@ -55,6 +60,89 @@ router = APIRouter(prefix="/materials", tags=["Materials"])
 MAX_FILES_PER_BATCH = 10
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md", ".html", ".htm"}
+
+REMOTE_CONTENT_TYPE_EXTENSIONS = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/msword": ".doc",
+    "text/plain": ".txt",
+    "text/markdown": ".md",
+    "text/html": ".html",
+}
+
+REMOTE_TYPE_FALLBACK_EXTENSIONS = {
+    MaterialType.PDF.value: ".pdf",
+    MaterialType.DOCX.value: ".docx",
+    MaterialType.DOC.value: ".doc",
+    MaterialType.TXT.value: ".txt",
+}
+
+
+def _normalize_project_name(raw_name: Optional[str], fallback: str = "Imported material") -> str:
+    normalized = (raw_name or "").strip()
+    return normalized[:200] or fallback
+
+
+def _safe_filename_stem(raw_name: str) -> str:
+    stem = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in raw_name.strip())
+    return stem.strip("_")[:80] or "material"
+
+
+def _build_material_response(material: Material) -> MaterialResponse:
+    return MaterialResponse(
+        id=material.id,
+        user_id=material.user_id,
+        project_id=material.project_id,
+        title=material.title,
+        type=material.type,
+        processing_status=material.processing_status,
+        processing_progress=material.processing_progress,
+        processing_error=material.processing_error,
+        file_name=material.file_name,
+        file_size=material.file_size,
+        source=material.source,
+        podcast_script=material.podcast_script,
+        podcast_audio_url=material.podcast_audio_url,
+        presentation_status=material.presentation_status,
+        presentation_url=material.presentation_url,
+        presentation_embed_url=material.presentation_embed_url,
+        created_at=material.created_at,
+        updated_at=material.updated_at,
+    )
+
+
+async def _download_remote_upload(
+    source_url: str,
+    fallback_title: str,
+    material_type: str,
+) -> tuple[Optional[UploadFile], bool]:
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(30.0, connect=10.0),
+        follow_redirects=True,
+    ) as client:
+        response = await client.get(source_url)
+        response.raise_for_status()
+
+    content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+    resolved_path = unquote(urlparse(str(response.url)).path)
+    filename = Path(resolved_path).name
+    file_ext = Path(filename).suffix.lower()
+    looks_like_pdf = response.content.startswith(b"%PDF")
+    treat_as_link = content_type == "text/html" and material_type == MaterialType.PDF.value and not looks_like_pdf
+
+    if treat_as_link:
+        return None, True
+
+    if not file_ext:
+        file_ext = REMOTE_CONTENT_TYPE_EXTENSIONS.get(content_type) or REMOTE_TYPE_FALLBACK_EXTENSIONS.get(material_type, ".txt")
+
+    if file_ext not in ALLOWED_EXTENSIONS:
+        file_ext = REMOTE_TYPE_FALLBACK_EXTENSIONS.get(material_type, ".txt")
+
+    filename_stem = Path(filename).stem if filename else _safe_filename_stem(fallback_title)
+    safe_name = f"{_safe_filename_stem(filename_stem)}{file_ext}"
+    upload = UploadFile(filename=safe_name, file=BytesIO(response.content))
+    return upload, False
 
 
 @router.post("/batch", status_code=status.HTTP_201_CREATED, response_model=BatchUploadResponse)
@@ -174,13 +262,13 @@ async def upload_materials_batch(
 
         # Map extension to MaterialType value (lowercase string)
         type_mapping = {
-            'pdf': MaterialType.PDF.value,
-            'docx': MaterialType.DOCX.value,
-            'doc': MaterialType.DOC.value,
-            'txt': MaterialType.TXT.value,
+            'pdf': MaterialType.PDF,
+            'docx': MaterialType.DOCX,
+            'doc': MaterialType.DOC,
+            'txt': MaterialType.TXT,
         }
 
-        material_type = type_mapping.get(file_ext, MaterialType.PDF.value)
+        material_type = type_mapping.get(file_ext, MaterialType.PDF)
 
         # Debug print (always works)
         print(f"*** DEBUG: File={file.filename}, Ext={file_ext}, Type={material_type} ***")
@@ -222,7 +310,7 @@ async def upload_materials_batch(
                 project_id=project_id,
                 batch_id=batch_id,
                 title=f"YouTube: {video_id}",
-                type=MaterialType.YOUTUBE.value,
+                type=MaterialType.YOUTUBE,
                 source=url,
                 processing_status=ProcessingStatus.QUEUED,
                 processing_progress=0,
@@ -241,7 +329,7 @@ async def upload_materials_batch(
                 project_id=project_id,
                 batch_id=batch_id,
                 title=f"Article: {url[:50]}...",
-                type=MaterialType.ARTICLE.value,
+                type=MaterialType.ARTICLE,
                 source=url,
                 processing_status=ProcessingStatus.QUEUED,
                 processing_progress=0,
@@ -279,25 +367,111 @@ async def upload_materials_batch(
     return BatchUploadResponse(
         batch_id=batch_id,
         project_id=project_id,
-        materials=[
-            MaterialResponse(
-                id=m.id,
-                user_id=m.user_id,
-                title=m.title,
-                type=m.type,
-                processing_status=m.processing_status,
-                processing_progress=m.processing_progress,
-                file_name=m.file_name,
-                file_size=m.file_size,
-                source=m.source,
-                created_at=m.created_at,
-                updated_at=m.updated_at,
-            )
-            for m in materials
-        ],
+        materials=[_build_material_response(m) for m in materials],
         status="queued",
         total_files=total_materials,
     )
+
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=MaterialResponse)
+async def create_material(
+    title: str = Form(...),
+    material_type: str = Form(...),
+    file: Optional[UploadFile] = File(default=None),
+    source: Optional[str] = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Backward-compatible single material creation endpoint.
+
+    Creates a dedicated project for a single uploaded/imported material and
+    reuses the batch pipeline so frontend flows stay aligned with current
+    processing behavior.
+    """
+    normalized_title = _normalize_project_name(title, "Imported material")
+
+    if file is None and not source:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either file or source is required",
+        )
+
+    try:
+        if file is not None:
+            batch_response = await upload_materials_batch(
+                project_id=None,
+                project_name=normalized_title,
+                files=[file],
+                youtube_urls=[],
+                link_urls=[],
+                db=db,
+                current_user=current_user,
+            )
+        elif material_type == MaterialType.YOUTUBE.value:
+            batch_response = await upload_materials_batch(
+                project_id=None,
+                project_name=normalized_title,
+                files=[],
+                youtube_urls=[source],
+                link_urls=[],
+                db=db,
+                current_user=current_user,
+            )
+        elif material_type == MaterialType.ARTICLE.value:
+            batch_response = await upload_materials_batch(
+                project_id=None,
+                project_name=normalized_title,
+                files=[],
+                youtube_urls=[],
+                link_urls=[source],
+                db=db,
+                current_user=current_user,
+            )
+        else:
+            downloaded_file, treat_as_link = await _download_remote_upload(
+                source_url=source,
+                fallback_title=normalized_title,
+                material_type=material_type,
+            )
+            if treat_as_link:
+                batch_response = await upload_materials_batch(
+                    project_id=None,
+                    project_name=normalized_title,
+                    files=[],
+                    youtube_urls=[],
+                    link_urls=[source],
+                    db=db,
+                    current_user=current_user,
+                )
+            elif downloaded_file is not None:
+                batch_response = await upload_materials_batch(
+                    project_id=None,
+                    project_name=normalized_title,
+                    files=[downloaded_file],
+                    youtube_urls=[],
+                    link_urls=[],
+                    db=db,
+                    current_user=current_user,
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to prepare remote material",
+                )
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download remote material: {exc}",
+        ) from exc
+
+    if not batch_response.materials:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Material was not created",
+        )
+
+    return batch_response.materials[0]
 
 
 @router.get("", response_model=List[MaterialResponse])
@@ -320,22 +494,7 @@ async def list_materials(
     result = await db.execute(query)
     materials = result.scalars().all()
 
-    return [
-        MaterialResponse(
-            id=m.id,
-            user_id=m.user_id,
-            title=m.title,
-            type=m.type,
-            processing_status=m.processing_status,
-            processing_progress=m.processing_progress,
-            file_name=m.file_name,
-            file_size=m.file_size,
-            source=m.source,
-            created_at=m.created_at,
-            updated_at=m.updated_at,
-        )
-        for m in materials
-    ]
+    return [_build_material_response(m) for m in materials]
 
 
 @router.get("/{material_id}", response_model=MaterialResponse)
@@ -361,19 +520,7 @@ async def get_material(
             detail="Material not found"
         )
     
-    return MaterialResponse(
-        id=material.id,
-        user_id=material.user_id,
-        title=material.title,
-        type=material.type,
-        processing_status=material.processing_status,
-        processing_progress=material.processing_progress,
-        file_name=material.file_name,
-        file_size=material.file_size,
-        source=material.source,
-        created_at=material.created_at,
-        updated_at=material.updated_at,
-    )
+    return _build_material_response(material)
 
 
 @router.get("/batch/{batch_id}", response_model=List[MaterialResponse])
@@ -400,22 +547,178 @@ async def get_batch_materials(
             detail="No materials found for this batch"
         )
     
-    return [
-        MaterialResponse(
-            id=m.id,
-            user_id=m.user_id,
-            title=m.title,
-            type=m.type,
-            processing_status=m.processing_status,
-            processing_progress=m.processing_progress,
-            file_name=m.file_name,
-            file_size=m.file_size,
-            source=m.source,
-            created_at=m.created_at,
-            updated_at=m.updated_at,
+    return [_build_material_response(m) for m in materials]
+
+
+@router.post("/{material_id}/podcast/generate-script")
+async def generate_podcast_script(
+    material_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate and persist a podcast script for a material."""
+    result = await db.execute(
+        select(Material).where(
+            Material.id == material_id,
+            Material.user_id == current_user.id,
+            Material.deleted_at.is_(None),
         )
-        for m in materials
-    ]
+    )
+    material = result.scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found",
+        )
+
+    if not material.full_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Material text is not available yet",
+        )
+
+    from app.domain.services.podcast_service import PodcastService
+
+    service = PodcastService()
+    try:
+        script = await service.generate_podcast_script(material)
+    except Exception as exc:
+        logger.exception("Failed to generate podcast script for material %s", material_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate podcast script: {exc}",
+        ) from exc
+
+    material.podcast_script = script
+    await db.commit()
+    await db.refresh(material)
+
+    return {"podcast_script": script}
+
+
+@router.post("/{material_id}/podcast/generate-audio")
+async def generate_podcast_audio(
+    material_id: UUID,
+    tts_provider: str = "edge",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate podcast audio for an existing podcast script."""
+    result = await db.execute(
+        select(Material).where(
+            Material.id == material_id,
+            Material.user_id == current_user.id,
+            Material.deleted_at.is_(None),
+        )
+    )
+    material = result.scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found",
+        )
+
+    if not material.podcast_script:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Podcast script has not been generated yet",
+        )
+
+    from app.domain.services.podcast_service import PodcastService
+
+    service = PodcastService()
+    podcasts_dir = os.path.join("storage", "podcasts", str(current_user.id))
+    os.makedirs(podcasts_dir, exist_ok=True)
+    filename = f"{material.id}.mp3"
+    storage_path = os.path.join(podcasts_dir, filename)
+    public_url = f"/storage/podcasts/{current_user.id}/{filename}"
+
+    try:
+        if tts_provider == "elevenlabs":
+            await service.generate_podcast_audio(material.podcast_script, storage_path)
+            provider = "elevenlabs"
+        else:
+            await service.generate_podcast_audio_edge_tts(
+                material.podcast_script,
+                storage_path,
+                language="auto",
+            )
+            provider = "edge"
+    except Exception as exc:
+        logger.exception("Failed to generate podcast audio for material %s", material_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate podcast audio: {exc}",
+        ) from exc
+
+    material.podcast_audio_url = public_url
+    await db.commit()
+    await db.refresh(material)
+
+    return {
+        "podcast_audio_url": public_url,
+        "provider": provider,
+        "message": "Podcast generated successfully",
+    }
+
+
+@router.post("/{material_id}/presentation/generate")
+async def generate_presentation(
+    material_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate and persist a presentation for a material."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Material)
+        .options(selectinload(Material.summary))
+        .where(
+            Material.id == material_id,
+            Material.user_id == current_user.id,
+            Material.deleted_at.is_(None),
+        )
+    )
+    material = result.scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found",
+        )
+
+    material.presentation_status = "generating"
+    await db.commit()
+
+    from app.domain.services.presentation_service import PresentationService
+
+    service = PresentationService()
+    summary_text = material.summary.summary if material.summary else None
+
+    try:
+        presentation_data = await service.generate_presentation(material, summary_text)
+        material.presentation_status = "completed"
+        material.presentation_url = presentation_data["url"]
+        material.presentation_embed_url = presentation_data.get("embed_url")
+        await db.commit()
+        await db.refresh(material)
+    except Exception as exc:
+        material.presentation_status = "failed"
+        await db.commit()
+        logger.exception("Failed to generate presentation for material %s", material_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate presentation: {exc}",
+        ) from exc
+
+    return {
+        "presentation_url": material.presentation_url,
+        "presentation_embed_url": material.presentation_embed_url,
+        "presentation_status": material.presentation_status,
+    }
 
 
 # ============== Project Content Endpoints ==============
@@ -496,6 +799,8 @@ async def get_material_content(
         )
 
     # Build response
+    summary_text = material.summary.summary if material.summary else None
+    notes_text = material.notes.notes if material.notes else None
     flashcards_list = [
         {"question": fc.question, "answer": fc.answer}
         for fc in material.flashcards
@@ -513,12 +818,33 @@ async def get_material_content(
         for q in material.quiz_questions
     ] if material.quiz_questions else []
 
+    if not any([summary_text, notes_text, flashcards_list, quiz_list]) and material.project_id:
+        material_count_result = await db.execute(
+            select(func.count(Material.id))
+            .where(
+                Material.project_id == material.project_id,
+                Material.deleted_at.is_(None),
+            )
+        )
+        material_count = material_count_result.scalar_one()
+
+        if material_count == 1:
+            project_content_result = await db.execute(
+                select(ProjectContent).where(ProjectContent.project_id == material.project_id)
+            )
+            project_content = project_content_result.scalar_one_or_none()
+            if project_content and project_content.processing_status == ProcessingStatus.COMPLETED:
+                summary_text = project_content.summary
+                notes_text = project_content.notes
+                flashcards_list = project_content.flashcards or []
+                quiz_list = project_content.quiz or []
+
     return MaterialContentResponse(
-        id=uuid.uuid4(),
+        id=material.id,
         material_id=material.id,
         title=material.title,
-        summary=material.summary.summary if material.summary else None,
-        notes=material.notes.notes if material.notes else None,
+        summary=summary_text,
+        notes=notes_text,
         flashcards=flashcards_list,
         quiz=quiz_list,
         processing_status=material.processing_status.value,
@@ -602,6 +928,17 @@ from sqlalchemy import func
 from app.infrastructure.database.models.project import Project
 
 
+def _raise_tutor_unavailable(exc: Exception) -> None:
+    logger.error("[TutorAPI] Tutor request failed: %s", exc, exc_info=True)
+    detail = "AI tutor is temporarily unavailable"
+    if isinstance(exc, RetryError) or "RateLimitError" in str(exc) or "insufficient_quota" in str(exc):
+        detail = "AI tutor is temporarily unavailable: OpenAI quota exceeded"
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=detail,
+    ) from exc
+
+
 @router.post("/{material_id}/tutor", response_model=TutorMessageResponse)
 async def send_tutor_message(
     material_id: UUID,
@@ -647,11 +984,14 @@ async def send_tutor_message(
 
     # Use TutorService to generate response
     tutor_service = TutorService(db)
-    await tutor_service.send_message(
-        material_id=material_id,
-        user_message=message_data.message,
-        context=message_data.context
-    )
+    try:
+        await tutor_service.send_message(
+            material_id=material_id,
+            user_message=message_data.message,
+            context=message_data.context
+        )
+    except Exception as exc:
+        _raise_tutor_unavailable(exc)
 
     # Get the last AI message from DB
     result = await db.execute(
@@ -664,6 +1004,62 @@ async def send_tutor_message(
     ai_message = result.scalar_one()
 
     return ai_message
+
+
+@router.post("/{material_id}/tutor/{message_id}/speak")
+async def speak_tutor_message(
+    material_id: UUID,
+    message_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Generate TTS audio for a stored tutor message."""
+    from app.infrastructure.ai.ai_tts_service import AITTSService
+
+    material_result = await db.execute(
+        select(Material).where(Material.id == material_id)
+    )
+    material = material_result.scalar_one_or_none()
+    if not material or material.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found",
+        )
+
+    message_result = await db.execute(
+        select(TutorMessage)
+        .where(TutorMessage.id == message_id)
+        .where(TutorMessage.material_id == material_id)
+    )
+    message = message_result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tutor message not found",
+        )
+
+    if not message.content or not message.content.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tutor message has no content to synthesize",
+        )
+
+    tts_service = AITTSService()
+    audio_path = await tts_service.text_to_speech(message.content)
+    if not audio_path:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate audio",
+        )
+
+    audio_name = Path(audio_path).name
+    if not audio_name.startswith("tts_"):
+        audio_name = f"tts_{message_id.hex[:12]}.mp3"
+
+    return {
+        "message_id": message.id,
+        "audio_url": f"/storage/tts_audio/{audio_name}",
+    }
 
 
 # ============================================================================
@@ -728,12 +1124,15 @@ async def send_project_tutor_message(
 
     # Create custom TutorService that searches across all materials
     tutor_service = TutorService(db)
-    await tutor_service.send_message_project_wide(
-        project_id=project_id,
-        material_ids=[m.id for m in materials],
-        user_message=message_data.message,
-        context=message_data.context
-    )
+    try:
+        await tutor_service.send_message_project_wide(
+            project_id=project_id,
+            material_ids=[m.id for m in materials],
+            user_message=message_data.message,
+            context=message_data.context
+        )
+    except Exception as exc:
+        _raise_tutor_unavailable(exc)
 
     # Get the last AI message from project tutor messages
     result = await db.execute(
@@ -746,6 +1145,62 @@ async def send_project_tutor_message(
     ai_message = result.scalar_one()
 
     return ai_message
+
+
+@router.post("/projects/{project_id}/tutor/{message_id}/speak")
+async def speak_project_tutor_message(
+    project_id: UUID,
+    message_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Generate TTS audio for a stored project tutor message."""
+    from app.infrastructure.ai.ai_tts_service import AITTSService
+
+    project_result = await db.execute(
+        select(Project).where(Project.id == project_id)
+    )
+    project = project_result.scalar_one_or_none()
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    message_result = await db.execute(
+        select(ProjectTutorMessage)
+        .where(ProjectTutorMessage.id == message_id)
+        .where(ProjectTutorMessage.project_id == project_id)
+    )
+    message = message_result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tutor message not found",
+        )
+
+    if not message.content or not message.content.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tutor message has no content to synthesize",
+        )
+
+    tts_service = AITTSService()
+    audio_path = await tts_service.text_to_speech(message.content)
+    if not audio_path:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate audio",
+        )
+
+    audio_name = Path(audio_path).name
+    if not audio_name.startswith("tts_"):
+        audio_name = f"tts_{message_id.hex[:12]}.mp3"
+
+    return {
+        "message_id": message.id,
+        "audio_url": f"/storage/tts_audio/{audio_name}",
+    }
 
 
 @router.get("/projects/{project_id}/tutor/history", response_model=ProjectTutorChatHistoryResponse)

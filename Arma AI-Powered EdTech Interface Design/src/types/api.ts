@@ -33,6 +33,7 @@ export type ProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed';
 export interface Material {
   id: string;
   user_id: string;
+  project_id?: string;
   title: string;
   type: MaterialType;
   file_path?: string;

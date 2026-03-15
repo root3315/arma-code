@@ -402,6 +402,7 @@ def process_material_batch_task(
                 # Step 1: Process each material (extract text)
                 logger.info(f"[process_material_batch] Extracting text from {len(materials)} materials")
                 all_texts = []
+                extracted_materials: List[tuple[UUID, str]] = []
                 
                 for i, material in enumerate(materials):
                     try:
@@ -446,13 +447,37 @@ def process_material_batch_task(
                                 full_text = extract_text_from_document(file_path, extract_type)
                         
                         elif material.type == MaterialType.ARTICLE and material.source:
-                            # Extract from web URL (simplified - just use source as text for now)
                             logger.info(f"[process_material_batch] Article from URL: {material.source}")
-                            full_text = f"Article content from: {material.source}"
+                            import httpx
+                            from bs4 import BeautifulSoup
+
+                            async with httpx.AsyncClient(
+                                timeout=httpx.Timeout(20.0, connect=10.0),
+                                follow_redirects=True,
+                            ) as client:
+                                response = await client.get(
+                                    material.source,
+                                    headers={
+                                        "User-Agent": (
+                                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                                        )
+                                    },
+                                )
+                                response.raise_for_status()
+
+                            soup = BeautifulSoup(response.text, "html.parser")
+                            for tag in soup(["script", "style", "noscript"]):
+                                tag.decompose()
+
+                            title = soup.title.string.strip() if soup.title and soup.title.string else ""
+                            article_text = soup.get_text(separator="\n\n", strip=True)
+                            full_text = "\n\n".join(part for part in [title, article_text] if part).strip()
                         
                         if full_text:
                             full_text = normalize_text(full_text)
                             all_texts.append(full_text)
+                            extracted_materials.append((material.id, full_text))
                             
                             # Update material with extracted text
                             await session.execute(
@@ -460,7 +485,7 @@ def process_material_batch_task(
                                 .where(Material.id == material.id)
                                 .values(
                                     full_text=full_text,
-                                    processing_status=ProcessingStatus.COMPLETED,
+                                    processing_status=ProcessingStatus.PROCESSING,
                                     processing_progress=50
                                 )
                             )
@@ -539,6 +564,16 @@ def process_material_batch_task(
                     project_content.processing_progress = 100
                     await session.commit()
 
+                if len(extracted_materials) == 1:
+                    material_id, _ = extracted_materials[0]
+                    await processing_service._save_all_results(
+                        material_id,
+                        summary_text,
+                        notes_text,
+                        flashcards_data,
+                        quiz_data,
+                    )
+
                 # Step 6: Create embeddings for each material (for RAG)
                 logger.info(f"[process_material_batch] Creating embeddings for RAG")
                 for material in materials:
@@ -577,6 +612,19 @@ def process_material_batch_task(
                     if project_content:
                         project_content.processing_status = ProcessingStatus.FAILED
                         project_content.processing_error = str(e)
+                        await session.commit()
+
+                    if "materials" in locals():
+                        for material in materials:
+                            if material.processing_status != ProcessingStatus.FAILED:
+                                await session.execute(
+                                    update(Material)
+                                    .where(Material.id == material.id)
+                                    .values(
+                                        processing_status=ProcessingStatus.FAILED,
+                                        processing_error=str(e),
+                                    )
+                                )
                         await session.commit()
                 except Exception as update_error:
                     logger.error(f"[process_material_batch] Failed to update error status: {str(update_error)}")

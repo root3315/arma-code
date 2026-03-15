@@ -1,19 +1,23 @@
 """
 Service для RAG-based чата с AI тьютором
 """
+import json
 import logging
+import math
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Sequence
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text, func
 
 from app.infrastructure.database.models.material import Material, TutorMessage, ProjectTutorMessage
 from app.infrastructure.database.models.embedding import MaterialEmbedding
-from app.infrastructure.ai.openai_service import OpenAIService
+from app.infrastructure.ai.openai_service import OpenAIService, get_redis
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+_DISTANCE_THRESHOLD = 0.35
 
 
 class TutorService:
@@ -27,6 +31,50 @@ class TutorService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.ai_service = OpenAIService()
+
+    async def _get_redis(self):
+        return await get_redis()
+
+    @staticmethod
+    def _cosine_distance(a: Sequence[float], b: Sequence[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = math.sqrt(sum(x * x for x in a))
+        norm_b = math.sqrt(sum(x * x for x in b))
+        if norm_a == 0 or norm_b == 0:
+            return 1.0
+        return 1.0 - dot / (norm_a * norm_b)
+
+    async def _check_semantic_cache(
+        self,
+        material_id: UUID,
+        user_message: str,
+        query_embedding: Sequence[float],
+    ) -> Optional[str]:
+        redis = await self._get_redis()
+        if not redis:
+            return None
+
+        keys = await redis.keys(f"semantic_cache:{material_id}:*")
+        for key in keys:
+            raw_entry = await redis.get(key)
+            if not raw_entry:
+                continue
+            if isinstance(raw_entry, bytes):
+                raw_entry = raw_entry.decode("utf-8")
+            entry = json.loads(raw_entry)
+            cached_embedding = entry.get("embedding") or []
+            if not cached_embedding:
+                continue
+            if self._cosine_distance(query_embedding, cached_embedding) < _DISTANCE_THRESHOLD:
+                return entry.get("answer")
+        return None
+
+    async def _fallback_context(self, material_id: UUID) -> str:
+        result = await self.session.execute(
+            select(Material.full_text).where(Material.id == material_id)
+        )
+        full_text = result.scalar_one_or_none()
+        return full_text or ""
 
     async def send_message(
         self,
@@ -167,7 +215,7 @@ class TutorService:
             return ""
 
     async def _find_relevant_context(
-        self, material_id: UUID, query: str, top_k: int = 5
+        self, material_id: UUID, query: str | Sequence[float], top_k: int = 5
     ) -> str:
         """
         Найти релевантные куски текста используя vector similarity search.
@@ -184,7 +232,10 @@ class TutorService:
             logger.info(f"[TutorService] Finding relevant context for material {material_id}")
 
             # 1. Создать embedding для запроса
-            query_embedding = await self.ai_service.create_embedding(query)
+            if isinstance(query, str):
+                query_embedding = await self.ai_service.create_embedding(query)
+            else:
+                query_embedding = list(query)
 
             # 2. Выполнить vector similarity search
             # Используем pgvector cosine similarity (оператор <=>)
@@ -208,17 +259,27 @@ class TutorService:
                 }
             )
 
-            rows = result.all()
+            rows = result.fetchall() if hasattr(result, "fetchall") else result.all()
 
             if not rows:
                 logger.warning(f"[TutorService] No embeddings found for material {material_id}")
-                return ""
+                return await self._fallback_context(material_id)
 
             # 3. Объединить найденные chunks
-            context_chunks = [
-                f"[Chunk {row.chunk_index + 1}] {row.chunk_text}"
-                for row in rows
-            ]
+            context_chunks = []
+            for row in rows:
+                if hasattr(row, "_mapping"):
+                    chunk_text = row._mapping["chunk_text"]
+                    chunk_index = row._mapping["chunk_index"]
+                    distance = float(row._mapping["distance"])
+                else:
+                    chunk_text, chunk_index, distance = row
+
+                if distance < _DISTANCE_THRESHOLD:
+                    context_chunks.append(f"[Chunk {chunk_index + 1}] {chunk_text}")
+
+            if not context_chunks:
+                return await self._fallback_context(material_id)
 
             combined_context = "\n\n".join(context_chunks)
             logger.info(f"[TutorService] Found {len(rows)} relevant chunks for material {material_id}")

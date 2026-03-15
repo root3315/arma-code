@@ -23,7 +23,7 @@ import type {
 
 // Base configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-console.log(import.meta);
+
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -175,6 +175,21 @@ export const materialsApi = {
     return response.data;
   },
 
+  getMaterialContent: async (materialId: string): Promise<{
+    id: string;
+    material_id: string;
+    title: string;
+    summary: string | null;
+    notes: string | null;
+    flashcards: Array<{ question: string; answer: string }> | null;
+    quiz: Array<any> | null;
+    processing_status: string;
+    type: string;
+  }> => {
+    const response = await apiClient.get(`/materials/${materialId}/content`);
+    return response.data;
+  },
+
   regenerateProjectContent: async (projectId: string): Promise<{
     status: string;
     message: string;
@@ -272,6 +287,11 @@ export const materialsApi = {
     const response = await apiClient.post(`/materials/${materialId}/tutor/${messageId}/speak`);
     return response.data;
   },
+
+  projectTutorSpeak: async (projectId: string, messageId: string): Promise<{ audio_url: string; message_id: string }> => {
+    const response = await apiClient.post(`/materials/projects/${projectId}/tutor/${messageId}/speak`);
+    return response.data;
+  },
 };
 
 // ============================================================================
@@ -302,6 +322,10 @@ export const tutorApi = {
 
   clearHistory: async (materialId: string): Promise<void> => {
     await apiClient.delete(`/materials/${materialId}/tutor/history`);
+  },
+
+  clearProjectHistory: async (projectId: string): Promise<void> => {
+    await apiClient.delete(`/materials/projects/${projectId}/tutor/history`);
   },
 
   speakMessage: async (materialId: string, messageId: string): Promise<{ audio_url: string; message_id: string }> => {
@@ -437,20 +461,6 @@ export const projectsApi = {
     return response.data;
   },
 
-  getMaterialContent: async (materialId: string): Promise<{
-    id: string;
-    material_id: string;
-    title: string;
-    summary: string | null;
-    notes: string | null;
-    flashcards: Array<{ question: string; answer: string }> | null;
-    quiz: Array<any> | null;
-    processing_status: string;
-    type: string;
-  }> => {
-    const response = await apiClient.get(`/materials/${materialId}/content`);
-    return response.data;
-  },
 };
 
 // ============================================================================

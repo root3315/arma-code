@@ -232,7 +232,7 @@ function MaterialRowCard({ material, onClick }: { material: Material, onClick: (
       case 'processing': return 'PROCESSING';
       case 'queued': return 'QUEUED';
       case 'failed': return 'FAILED';
-      default: return material.processing_status.toUpperCase();
+      default: return String(material.processing_status).toUpperCase();
     }
   };
 
@@ -317,4 +317,3 @@ function ActionButton({ icon, tooltip, onClick }: { icon: React.ReactNode, toolt
     </button>
   );
 }
-

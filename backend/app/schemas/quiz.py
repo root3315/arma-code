@@ -19,6 +19,7 @@ class QuizQuestionBase(BaseModel):
 class QuizQuestionCreate(QuizQuestionBase):
     """Schema for creating a quiz question."""
     material_id: UUID
+    explanation: str | None = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -65,6 +66,7 @@ class QuizQuestionResponse(TimestampSchema):
 class QuizQuestionWithAnswerResponse(QuizQuestionResponse):
     """Schema for quiz question response with correct answer (for admin/results)."""
     correct_option: str  # Full text of correct answer
+    explanation: str | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -132,9 +134,11 @@ class QuizAnswerRequest(BaseModel):
 class QuizAnswerResponse(BaseModel):
     """Schema for quiz answer result."""
     question_id: UUID
+    question_text: str | None = None
     is_correct: bool
     correct_option: str  # Full text of correct answer
     selected_option: str  # Full text of selected answer
+    explanation: str | None = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -193,6 +197,7 @@ class QuizAttemptAnswerDetail(BaseModel):
     selected: str  # Full text of selected answer
     correct: bool
     correct_option: str  # Full text of correct answer
+    explanation: str | None = None
 
 
 class QuizAttemptSaveRequest(BaseModel):

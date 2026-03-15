@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { AuthProvider } from './contexts/AuthContext';
@@ -11,7 +11,8 @@ import { DashboardHome } from './components/dashboard/DashboardHome';
 import { ActivityView } from './components/dashboard/ActivityView';
 import { LibraryView } from './components/dashboard/LibraryView';
 import { ProfileView } from './components/dashboard/ProfileView';
-import { ProjectDetailView } from './pages/ProjectDetailView';
+import { ProjectDetailView as MaterialDetailView } from './components/dashboard/ProjectDetailView';
+import { ProjectDetailView as ProjectPageView } from './pages/ProjectDetailView';
 import { FlashcardsView } from './components/dashboard/FlashcardsView';
 import { LanguagesView } from './components/dashboard/LanguagesView';
 import { ExamView } from './components/dashboard/ExamView';
@@ -36,6 +37,7 @@ function DashboardWrapper() {
   const getCurrentView = (): ViewState => {
     const path = location.pathname.split('/dashboard/')[1] || '';
     if (path.startsWith('materials')) return 'materials';
+    if (path.startsWith('projects')) return 'materials';
     if (path === '' || path === '/') return 'dashboard';
     return path.split('/')[0] as ViewState;
   };
@@ -56,15 +58,9 @@ function DashboardWrapper() {
     setUploadModalOpen(false);
   };
 
-  const handleUploadStart = (type: 'PDF' | 'YouTube' | 'Link', title: string) => {
-    // После успешной загрузки можно перейти к материалу или остаться на текущей странице
-    // Материал будет добавлен через API внутри UploadModal
-    // Upload started via UploadModal API call
-  };
-
-  const handleUploadSuccess = () => {
-    // Триггер для обновления списка материалов во всех компонентах
+  const handleUploadSuccess = (projectId: string) => {
     setRefreshTrigger(prev => prev + 1);
+    navigate(`/dashboard/projects/${projectId}`);
   };
 
   const handleMaterialClick = (materialId: string) => {
@@ -94,8 +90,8 @@ function DashboardWrapper() {
           <Route path="languages" element={<LanguagesView />} />
           <Route path="exam" element={<ExamView />} />
           <Route path="profile" element={<ProfileView />} />
-          <Route path="materials/:id" element={<ProjectDetailView />} />
-          <Route path="projects/:projectId" element={<ProjectDetailView />} />
+          <Route path="materials/:id" element={<MaterialDetailView />} />
+          <Route path="projects/:projectId" element={<ProjectPageView />} />
         </Routes>
       </DashboardLayout>
 
@@ -104,7 +100,6 @@ function DashboardWrapper() {
         {uploadModalOpen && (
           <UploadModal
             onClose={handleCloseUploadModal}
-            onUploadStart={handleUploadStart}
             onSuccess={handleUploadSuccess}
           />
         )}

@@ -126,11 +126,31 @@ export function useMaterialSummary(materialId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      const data = await materialsApi.getSummary(materialId);
-      setSummary(data);
+      const content = await materialsApi.getMaterialContent(materialId);
+      setSummary(
+        content.summary
+          ? {
+              id: content.id,
+              material_id: content.material_id,
+              summary: content.summary,
+              created_at: new Date().toISOString(),
+            }
+          : null
+      );
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load summary');
-
+      try {
+        const data = await materialsApi.getSummary(materialId);
+        setSummary(data);
+        setError(null);
+      } catch (fallbackErr: any) {
+        const status = fallbackErr.response?.status;
+        if (status === 404) {
+          setSummary(null);
+          setError(null);
+        } else {
+          setError(fallbackErr.response?.data?.detail || 'Failed to load summary');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -160,11 +180,31 @@ export function useMaterialNotes(materialId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      const data = await materialsApi.getNotes(materialId);
-      setNotes(data);
+      const content = await materialsApi.getMaterialContent(materialId);
+      setNotes(
+        content.notes
+          ? {
+              id: content.id,
+              material_id: content.material_id,
+              notes: content.notes,
+              created_at: new Date().toISOString(),
+            }
+          : null
+      );
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load notes');
-
+      try {
+        const data = await materialsApi.getNotes(materialId);
+        setNotes(data);
+        setError(null);
+      } catch (fallbackErr: any) {
+        const status = fallbackErr.response?.status;
+        if (status === 404) {
+          setNotes(null);
+          setError(null);
+        } else {
+          setError(fallbackErr.response?.data?.detail || 'Failed to load notes');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -499,7 +539,7 @@ export function useProjectContent(projectId: string | null) {
 
   // Auto-refresh if processing
   useEffect(() => {
-    if (!content || content.processing_status !== 'processing') {
+    if (!content || !['queued', 'processing'].includes(content.processing_status)) {
       return;
     }
 

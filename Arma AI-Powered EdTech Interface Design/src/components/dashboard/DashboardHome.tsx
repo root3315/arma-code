@@ -167,17 +167,14 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
         source: result.url
       });
 
-      // Refresh materials list immediately
-      await refetch();
-
-      // Close modal
+      await Promise.all([refetch(), refetchProjects()]);
       setInputValue('');
-
-      // Show success message
-      toast.success(`Added "${material.title}" successfully!`);
+      setIsSearchModalOpen(false);
+      if (material.project_id && onProjectClick) {
+        onProjectClick(material.project_id);
+      }
       return true;
     } catch (error) {
-      toast.error('Failed to add material');
       throw error;
     }
   };

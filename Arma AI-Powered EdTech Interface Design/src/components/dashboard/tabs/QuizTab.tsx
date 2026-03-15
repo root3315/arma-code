@@ -286,7 +286,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
 
                                         return (
                                             <motion.button
-                                                key={option.text}
+                                                key={`${currentQuestion}-${option.letter}-${idx}`}
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: idx * 0.1 }}

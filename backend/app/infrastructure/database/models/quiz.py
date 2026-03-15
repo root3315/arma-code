@@ -19,6 +19,7 @@ class QuizQuestion(Base):
     option_c = Column(Text, nullable=False)
     option_d = Column(Text, nullable=False)
     correct_option = Column(Text, nullable=False)  # Full text of correct answer
+    explanation = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -341,7 +341,6 @@ function FlashcardsPlayer({ materialId, onBack }: { materialId: string, onBack: 
                         initial={{ scale: 1 - card.offset * 0.05, y: card.offset * 12, opacity: 1 - card.offset * 0.3 }}
                         animate={{
                             scale: 1 - card.offset * 0.05,
-                            y: card.offset * 12,
                             opacity: 1 - card.offset * 0.3,
                             x: isTop ? (direction === 1 ? direction * 50 : direction * 50) : 0,
                             y: isTop ? (direction !== 0 ? 50 : card.offset * 12) : card.offset * 12,

@@ -106,7 +106,7 @@ class QuizService:
             QuizAttemptHistoryResponse с сохраненной попыткой
         """
         # Конвертировать answers в dict для JSON column
-        answers_json = [answer.model_dump() for answer in request.answers]
+        answers_json = [answer.model_dump(mode="json") for answer in request.answers]
 
         # Создать попытку через repository
         attempt = await self.repository.create(

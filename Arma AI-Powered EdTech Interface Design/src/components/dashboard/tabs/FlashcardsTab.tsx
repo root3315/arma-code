@@ -4,9 +4,11 @@ import { Brain, Play, CheckCircle2, Loader2, ChevronLeft, ChevronRight, RotateCw
 import { toast } from 'sonner';
 import type { Material, Flashcard } from '../../../types/api';
 
+type FlashcardItem = Pick<Flashcard, 'question' | 'answer'> & Partial<Flashcard>;
+
 export interface FlashcardsTabProps {
     material: Material;
-    flashcards: Flashcard[];
+    flashcards: FlashcardItem[];
     loading: boolean;
     viewMode?: 'all' | 'single';
 }

@@ -8,6 +8,7 @@ import { materialsApi } from '../../../services/api';
 
 export interface ChatTabProps {
   material: Material;
+  projectId?: string;
   messages: TutorMessage[];
   sendMessage: (message: string, context?: 'chat' | 'selection') => Promise<any>;
   sending: boolean;
@@ -17,7 +18,7 @@ export interface ChatTabProps {
 
 const DEBOUNCE_MS = 300;
 
-export function ChatTab({ material, messages, sendMessage, sending, loading, isTyping }: ChatTabProps) {
+export function ChatTab({ material, projectId, messages, sendMessage, sending, loading, isTyping }: ChatTabProps) {
   const [input, setInput] = useState('');
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
@@ -51,7 +52,9 @@ export function ChatTab({ material, messages, sendMessage, sending, loading, isT
       setSpeakingId(msg.id);
       
       // Generate speech
-      const response = await materialsApi.tutorSpeak(material.id, msg.id);
+      const response = projectId
+        ? await materialsApi.projectTutorSpeak(projectId, msg.id)
+        : await materialsApi.tutorSpeak(material.id, msg.id);
       
       // Play audio
       const audioUrl = response.audio_url.startsWith('http')

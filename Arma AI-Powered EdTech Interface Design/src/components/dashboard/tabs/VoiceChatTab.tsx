@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AudioLines, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Material } from '../../types/api';
+import type { Material } from '../../../types/api';
 
 interface VoiceChatTabProps {
   material: Material;

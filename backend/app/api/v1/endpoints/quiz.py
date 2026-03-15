@@ -29,6 +29,11 @@ from app.schemas.common import MessageResponse
 router = APIRouter()
 
 
+def _fallback_explanation(question: QuizQuestion) -> str:
+    """Return stored explanation when available, otherwise a safe fallback."""
+    return question.explanation or f"Correct answer: {question.correct_option}"
+
+
 @router.get("/materials/{material_id}/quiz", response_model=QuizListWithAnswersResponse)
 async def get_quiz_questions(
     material_id: UUID,
@@ -60,6 +65,30 @@ async def get_quiz_questions(
     questions = result.scalars().all()
 
     # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(QuizQuestion).where(QuizQuestion.material_id == material_id)
+    )
+    total = count_result.scalar()
+
+    return {"questions": questions, "total": total}
+
+
+@router.get("/materials/{material_id}/quiz/exam", response_model=QuizListResponse)
+async def get_exam_quiz_questions(
+    material_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get quiz questions without correct answers for exam mode."""
+    await verify_material_owner(material_id, current_user, db)
+
+    result = await db.execute(
+        select(QuizQuestion)
+        .where(QuizQuestion.material_id == material_id)
+        .order_by(QuizQuestion.created_at.asc())
+    )
+    questions = result.scalars().all()
+
     count_result = await db.execute(
         select(func.count()).select_from(QuizQuestion).where(QuizQuestion.material_id == material_id)
     )
@@ -183,9 +212,11 @@ async def check_answer(
 
     return {
         "question_id": question.id,
+        "question_text": question.question,
         "is_correct": is_correct,
         "correct_option": question.correct_option,
-        "selected_option": answer_data.selected_option
+        "selected_option": answer_data.selected_option,
+        "explanation": _fallback_explanation(question),
     }
 
 
@@ -241,9 +272,11 @@ async def submit_quiz_attempt(
 
         results.append({
             "question_id": question.id,
+            "question_text": question.question,
             "is_correct": is_correct,
             "correct_option": question.correct_option,
-            "selected_option": answer.selected_option
+            "selected_option": answer.selected_option,
+            "explanation": _fallback_explanation(question),
         })
 
     # Calculate score

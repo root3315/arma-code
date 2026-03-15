@@ -280,7 +280,8 @@ export function ProjectDetailView() {
                 {project.materials.map((material) => (
                   <div
                     key={material.id}
-                    className="group p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all"
+                    onClick={() => navigate(`/dashboard/materials/${material.id}`)}
+                    className="group cursor-pointer p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/20 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getMaterialColor(material.type)}`}>
@@ -334,6 +335,7 @@ export function ProjectDetailView() {
                       podcast_status: 'pending',
                       presentation_status: 'pending',
                     } as any}
+                    projectId={projectId}
                     messages={tutorMessages}
                     sendMessage={sendMessage}
                     sending={sending}

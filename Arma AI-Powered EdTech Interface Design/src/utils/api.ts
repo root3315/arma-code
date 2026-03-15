@@ -1,26 +1,12 @@
-import { projectId, publicAnonKey } from './supabase/info';
-
-const BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-37cad5a7`;
+import { materialsApi } from '../services/api';
 
 export async function fetchMaterials() {
-  const response = await fetch(`${BASE_URL}/materials`, {
-    headers: {
-      'Authorization': `Bearer ${publicAnonKey}`
-    }
-  });
-  if (!response.ok) throw new Error('Failed to fetch materials');
-  return response.json();
+  return materialsApi.list();
 }
 
 export async function createMaterial(data: { title: string; type: 'PDF' | 'YouTube' }) {
-  const response = await fetch(`${BASE_URL}/materials`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${publicAnonKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
+  return materialsApi.create({
+    title: data.title,
+    material_type: data.type.toLowerCase() as 'pdf' | 'youtube',
   });
-  if (!response.ok) throw new Error('Failed to create material');
-  return response.json();
 }

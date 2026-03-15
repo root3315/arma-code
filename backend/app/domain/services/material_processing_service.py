@@ -170,6 +170,7 @@ class MaterialProcessingService:
                     option_c=q["option_c"],
                     option_d=q["option_d"],
                     correct_option=q["correct_option"],
+                    explanation=q.get("explanation"),
                 ))
 
         logger.info(
@@ -379,8 +380,27 @@ class MaterialProcessingService:
                     option_c=q["option_c"],
                     option_d=q["option_d"],
                     correct_option=q["correct_option"],
+                    explanation=q.get("explanation"),
                 ))
         return len(quiz_data)
+
+    async def _save_quiz(self, material_id: UUID, quiz_questions: List[Dict]) -> None:
+        """Backward-compatible helper kept for tests and legacy callers."""
+        await self.session.execute(
+            delete(QuizQuestion).where(QuizQuestion.material_id == material_id)
+        )
+        for q in quiz_questions:
+            self.session.add(QuizQuestion(
+                material_id=material_id,
+                question=q["question"],
+                option_a=q["option_a"],
+                option_b=q["option_b"],
+                option_c=q["option_c"],
+                option_d=q["option_d"],
+                correct_option=q["correct_option"],
+                explanation=q.get("explanation"),
+            ))
+        await self.session.commit()
 
     async def _get_material(self, material_id: UUID) -> Material:
         """Получить материал по ID."""
