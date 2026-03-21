@@ -84,6 +84,23 @@ def _set_cached_transcript(video_id: str, transcript: str, ttl: int = 7 * 24 * 3
     except Exception:
         pass
 
+
+def _list_available_transcripts(video_id: str):
+    """
+    Return transcript list object across youtube-transcript-api versions.
+
+    Older releases expose ``YouTubeTranscriptApi.list_transcripts(video_id)``.
+    Newer releases expose ``YouTubeTranscriptApi().list(video_id)``.
+    """
+    if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+        return YouTubeTranscriptApi.list_transcripts(video_id)
+
+    api = YouTubeTranscriptApi()
+    if hasattr(api, "list"):
+        return api.list(video_id)
+
+    raise AttributeError("Unsupported youtube_transcript_api version: no transcript listing method found")
+
 # Initialize OpenAI client for Whisper
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -543,7 +560,7 @@ def extract_text_from_youtube(url: str, language: str = 'ru') -> str:
     # Strategy 1: Try to get subtitles
     try:
         logger.info(f"[YouTube:{video_id}] Strategy 1: Attempting to get subtitles...")
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript_list = _list_available_transcripts(video_id)
 
         transcript_candidates = []
         seen_candidates = set()
