@@ -678,22 +678,6 @@ def extract_text_from_youtube(url: str, language: str = 'ru') -> str:
         for available in available_transcripts:
             add_candidate(available)
 
-        for available in available_transcripts:
-            if not getattr(available, "is_translatable", False):
-                continue
-            try:
-                add_candidate(available.translate('en'))
-            except Exception as translate_error:
-                logger.warning(
-                    f"[YouTube:{video_id}] Translation failed: "
-                    f"{type(translate_error).__name__}: {str(translate_error)}",
-                    exc_info=True,
-                    extra=_log_extra(
-                        video_id=video_id,
-                        error_type=type(translate_error).__name__,
-                    ),
-                )
-
         if not transcript_candidates:
             raise NoTranscriptFound(video_id, ['ru', 'en'], None)
 
