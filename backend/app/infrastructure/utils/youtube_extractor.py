@@ -101,6 +101,85 @@ def _list_available_transcripts(video_id: str):
 
     raise AttributeError("Unsupported youtube_transcript_api version: no transcript listing method found")
 
+
+def _parse_vtt_to_text(vtt_text: str) -> str:
+    """Extract plain transcript text from a VTT subtitle payload."""
+    lines: List[str] = []
+    previous = ""
+
+    for raw_line in vtt_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line == "WEBVTT":
+            continue
+        if "-->" in line:
+            continue
+        if line.isdigit():
+            continue
+
+        cleaned = re.sub(r"<[^>]+>", "", line).strip()
+        if not cleaned or cleaned == previous:
+            continue
+
+        previous = cleaned
+        lines.append(cleaned)
+
+    return " ".join(lines).strip()
+
+
+def _download_subtitles_with_ytdlp(url: str, video_id: str, language: str = "en") -> Optional[str]:
+    """
+    Download subtitles-only via yt-dlp.
+
+    This is much cheaper than audio fallback and works on hosts where transcript
+    XML fetch is flaky but subtitle download still succeeds.
+    """
+    temp_dir = tempfile.mkdtemp(prefix=f"yt_subs_{video_id}_")
+    try:
+        outtmpl = os.path.join(temp_dir, "%(id)s.%(ext)s")
+        ydl_opts = {
+            "skip_download": True,
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitleslangs": [language, "en", "ru"],
+            "subtitlesformat": "vtt",
+            "outtmpl": outtmpl,
+            "quiet": True,
+            "no_warnings": True,
+            "socket_timeout": 20,
+            "retries": 2,
+            "nocheckcertificate": True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            dl_video_id = info.get("id", video_id)
+
+        subtitle_files = [
+            os.path.join(temp_dir, name)
+            for name in os.listdir(temp_dir)
+            if name.startswith(dl_video_id) and name.endswith(".vtt")
+        ]
+        if not subtitle_files:
+            return None
+
+        with open(subtitle_files[0], "r", encoding="utf-8") as f:
+            subtitle_text = f.read()
+
+        parsed_text = _parse_vtt_to_text(subtitle_text)
+        return parsed_text or None
+
+    except Exception as e:
+        logger.warning(
+            f"[YouTube:{video_id}] yt-dlp subtitle fallback failed: {type(e).__name__}: {e}",
+            exc_info=True,
+            extra=_log_extra(video_id=video_id, strategy="subtitle_download", error_type=type(e).__name__),
+        )
+        return None
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 # Initialize OpenAI client for Whisper
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -650,6 +729,16 @@ def extract_text_from_youtube(url: str, language: str = 'ru') -> str:
                     exc_info=True,
                     extra=_log_extra(video_id=video_id, error_type=type(fetch_error).__name__),
                 )
+
+        logger.info(f"[YouTube:{video_id}] Strategy 1b: Attempting subtitle-only yt-dlp fallback...")
+        subtitle_fallback_text = _download_subtitles_with_ytdlp(url, video_id, language=language)
+        if subtitle_fallback_text and len(subtitle_fallback_text) >= 10:
+            _set_cached_transcript(video_id, subtitle_fallback_text)
+            logger.info(
+                f"[YouTube:{video_id}] ✓ Strategy 1b successful: "
+                f"{len(subtitle_fallback_text)} characters from yt-dlp subtitles"
+            )
+            return subtitle_fallback_text
 
         raise NoTranscriptFound(video_id, ['ru', 'en'], None)
 
