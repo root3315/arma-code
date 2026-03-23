@@ -8,6 +8,7 @@ import { SearchResultsModal } from '../shared/SearchResultsModal';
 import { searchApi, materialsApi } from '../../services/api';
 import type { SearchPhase, SearchResponse, SearchResult } from '../../types/api';
 import { ProjectCard } from './ProjectCard';
+import { DashboardHero } from './DashboardHero';
 
 // Pool of learning suggestions organized by category
 const SUGGESTION_POOL = {
@@ -261,98 +262,59 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
     <div className="min-h-full flex flex-col relative pb-32 md:pb-20 overflow-x-hidden">
 
       {/* PULSING ORB BACKGROUND – radial gradient for clean, controlled glow */}
-      <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-0 orb-glow-bg" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-20 pointer-events-none z-0 orb-glow-bg" />
 
       {/* AI CHAT HERO SECTION */}
       <div className="relative z-10 flex flex-col items-center justify-center pt-8 md:pt-24 pb-8 md:pb-16 px-4 md:px-4">
 
-        {/* Floating AI Core */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-6 md:mb-10 relative"
-        >
-          {/* Sphere Core Visual */}
-          <div className="w-20 h-20 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-white/10 to-white/0 border border-white/10 backdrop-blur-sm relative flex items-center justify-center overflow-hidden orb-sphere-shadow">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-t from-primary/20 to-transparent opacity-50" />
-            <AICore size="md" className="w-10 h-10 md:w-20 md:h-20 text-primary" />
-          </div>
-        </motion.div>
+        
 
-        {/* Greeting */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 1 }}
-          className="text-center mb-8 md:mb-10 space-y-2 md:space-y-3 px-0 w-full md:w-auto"
-        >
-          <h1 className="text-2xl md:text-5xl font-medium tracking-tight text-white drop-shadow-xl">
-            Good to see you.
-          </h1>
-          <p className="text-base md:text-2xl text-white/50 font-light tracking-wide">
-            How can I help you learn today?
-          </p>
-        </motion.div>
-
-        {/* Primary Input (Desktop: Center / Mobile: Sticky Bottom) */}
+        {/* Primary Upload CTAs - NEW DashboardHero */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="w-full max-w-2xl relative group z-10 px-4 md:px-0"
+          className="w-full max-w-4xl relative z-10"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-xl hidden md:block pointer-events-none" />
+          <DashboardHero
+            onUploadPDF={onUpload}
+            onUploadVideo={onUpload}
+            onUploadNotes={onUpload}
+            onSearch={(query) => {
+              setInputValue(query);
+              handleSearch(query);
+            }}
+            isUploading={false}
+          />
+        </motion.div>
 
-          <div className="relative bg-[#0A0A0C]/90 md:bg-[#0A0A0C]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl transition-all duration-300 md:group-hover:border-primary/30 md:group-hover:shadow-[0_0_40px_rgba(0,0,0,0.4)] flex items-center gap-4 pr-3">
-            <div className="pl-4 hidden md:block">
-              <Sparkles className="w-5 h-5 text-primary/70 animate-pulse" />
-            </div>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="What do you want to learn?"
-              className="flex-1 h-12 bg-transparent border-none outline-none text-base md:text-lg text-white placeholder:text-white/20 font-light pl-2 md:pl-0"
-            />
-            <div className="flex items-center gap-1">
-              <button onClick={onUpload} className="p-2.5 rounded-xl hover:bg-white/5 text-muted-foreground hover:text-white transition-colors" title="Attach file">
-                <Plus className="w-5 h-5" />
-              </button>
-              <button onClick={() => handleSearch()} className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors">
-                <ArrowUpRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Chips with rotation */}
-          <div className="relative z-10 flex md:justify-center items-center gap-2 md:gap-3 mt-4 md:mt-6 overflow-x-auto scrollbar-hide pb-2 md:pb-0 px-1 md:px-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={suggestionKey}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex gap-2 md:gap-3"
-              >
-                {suggestions.map((text, i) => (
-                  <motion.button
-                    key={`${suggestionKey}-${i}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 + i * 0.1 }}
-                    onClick={() => handleSuggestionClick(text)}
-                    className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.02] hover:bg-primary/10 text-sm text-white/60 hover:text-primary whitespace-nowrap transition-all duration-200 hover:border-primary/30 hover:shadow-md shrink-0 group"
-                  >
-                    <span className="flex items-center gap-2">
-                      {text}
-                      <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </span>
-                  </motion.button>
-                ))}
-              </motion.div>
-            </AnimatePresence>
+        {/* Chips with rotation - moved below DashboardHero */}
+        <div className="relative z-10 flex md:justify-center items-center gap-2 md:gap-3 mt-6 md:mt-8 overflow-x-auto scrollbar-hide pb-2 md:pb-0 px-1 md:px-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={suggestionKey}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex gap-2 md:gap-3"
+            >
+              {suggestions.map((text, i) => (
+                <motion.button
+                  key={`${suggestionKey}-${i}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.1 }}
+                  onClick={() => handleSuggestionClick(text)}
+                  className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.02] hover:bg-primary/10 text-sm text-white/60 hover:text-primary whitespace-nowrap transition-all duration-200 hover:border-primary/30 hover:shadow-md shrink-0 group"
+                >
+                  <span className="flex items-center gap-2">
+                    {text}
+                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </span>
+                </motion.button>
+              ))}
+            </motion.div>
+          </AnimatePresence>
 
             {/* Refresh button */}
             <motion.button
@@ -366,7 +328,6 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
               <RefreshCw className="w-3.5 h-3.5" />
             </motion.button>
           </div>
-        </motion.div>
       </div>
 
       {/* PROJECTS SECTION */}

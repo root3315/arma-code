@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, Youtube, Link, FileText, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useBatchUpload } from '../../hooks/useApi';
 import { FileInput } from '../upload/FileInput';
+import { ProcessingModal } from '../dashboard/ProcessingModal';
+import { useMaterialUpload } from '../../hooks/useMaterialUpload';
 
 interface UploadModalProps {
   onClose: () => void;
@@ -31,6 +33,17 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
   const [linkInput, setLinkInput] = useState('');
   const [materials, setMaterials] = useState<FileObject[]>([]);
   const { uploadBatch, uploading } = useBatchUpload();
+  
+  // Processing modal state
+  const [uploadedMaterialId, setUploadedMaterialId] = useState<string | null>(null);
+  const {
+    showProcessingModal,
+    status: uploadStatus,
+    isComplete: uploadComplete,
+    isFailed: uploadFailed,
+    statusError: uploadError,
+    handleCloseModal,
+  } = useMaterialUpload(() => {}, uploadedMaterialId);
 
   const MAX_FILES = 10;
   const totalItems = materials.length + youtubeUrls.length + linkUrls.length;
@@ -144,6 +157,12 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
         link_urls: linkUrls,
       });
 
+      // Set material ID for processing modal
+      const firstMaterialId = result.materials[0]?.id;
+      if (firstMaterialId) {
+        setUploadedMaterialId(firstMaterialId);
+      }
+
       toast.success(`Uploaded ${result.total_files} materials! Processing started.`);
       window.dispatchEvent(new CustomEvent('project-created', { detail: { projectId: result.project_id } }));
 
@@ -154,10 +173,12 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
           totalFiles: result.total_files,
         });
       } else {
-        navigate(`/dashboard/projects/${result.project_id}`);
+        // Don't navigate immediately - let user see processing modal
+        // navigate(`/dashboard/projects/${result.project_id}`);
       }
 
-      onClose();
+      // Don't close modal yet - let processing modal show
+      // onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to upload materials');
     }
@@ -212,7 +233,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-xs font-medium transition-colors ${
+                  className={`flex h-11 py-2 flex-1 items-center justify-center gap-2 rounded-xl text-xs font-medium transition-colors ${
                     activeTab === tab.id ? 'bg-primary text-black' : 'text-white/60 hover:text-white'
                   }`}
                 >
@@ -245,12 +266,13 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
 
                       {materials.length < MAX_FILES && <FileInput onAdd={addMaterials} />}
                     </div>
-                    <p className="text-xs text-white/35">Files supported: PDF, DOCX, DOC, TXT</p>
+                    
                     <button
                       onClick={handleUpload}
                       disabled={uploading || totalItems === 0}
                       className="flex h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-black transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
                     >
+                      
                       {actionLabel}
                     </button>
                   </div>
@@ -265,7 +287,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                         onChange={(event) => setYoutubeInput(event.target.value)}
                         onKeyDown={(event) => event.key === 'Enter' && addYoutubeUrl()}
                         placeholder="https://youtube.com/watch?v=..."
-                        className="h-11 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none"
+                        className="h-11 py-2 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none"
                       />
                       <button
                         onClick={addYoutubeUrl}
@@ -297,7 +319,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                         onChange={(event) => setLinkInput(event.target.value)}
                         onKeyDown={(event) => event.key === 'Enter' && addLinkUrl()}
                         placeholder="https://example.com/article"
-                        className="h-11 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none"
+                        className="h-11 py-2 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none"
                       />
                       <button
                         onClick={addLinkUrl}
@@ -335,6 +357,31 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
           )}
         </motion.div>
       </div>
+
+      {/* Processing Modal */}
+      <ProcessingModal
+        isOpen={!!uploadedMaterialId && showProcessingModal}
+        realProgress={uploadStatus?.progress || 0}
+        isComplete={uploadComplete}
+        isError={uploadFailed}
+        errorMessage={uploadError}
+        onClose={() => {
+          handleCloseModal();
+          setUploadedMaterialId(null);
+          onClose();
+        }}
+        onComplete={() => {
+          // Navigate to project when processing is complete
+          handleCloseModal();
+          setUploadedMaterialId(null);
+          onClose();
+          // Use onSuccess callback if available, otherwise navigate
+          if (projectId) {
+            window.location.href = `/dashboard/projects/${projectId}`;
+          }
+        }}
+        materialName=""
+      />
     </div>
   );
 }

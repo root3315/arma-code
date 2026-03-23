@@ -22,6 +22,7 @@ import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PricingPage } from './pages/PricingPage';
 import { projectsApi } from './services/api';
+import { OnboardingTour } from './components/dashboard/OnboardingTour';
 
 export type ViewState = 'dashboard' | 'activity' | 'library' | 'flashcards' | 'languages' | 'exam' | 'profile' | 'materials';
 
@@ -132,6 +133,9 @@ function DashboardWrapper() {
           />
         )}
       </AnimatePresence>
+
+      {/* Onboarding Tour - shows for first-time users */}
+      <OnboardingTour />
     </>
   );
 }

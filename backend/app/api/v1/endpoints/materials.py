@@ -26,6 +26,7 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_db, get_current_user, get_current_active_user, require_quota, require_plan
 
@@ -1384,3 +1385,88 @@ async def clear_tutor_history(
     await tutor_service.clear_history(material_id)
 
     return {"message": "Chat history cleared successfully"}
+
+
+@router.get("/{material_id}/processing-status", response_model=dict)
+async def get_material_processing_status(
+    material_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get the processing status and progress for a material.
+
+    This endpoint is used by the frontend to show real-time progress
+    during material processing with fake progress smoothing.
+
+    Args:
+        material_id: Material UUID
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Processing status with progress percentage and stage info
+
+    Raises:
+        HTTPException: If material not found or access denied
+    """
+    # Verify material ownership and load relationships
+    result = await db.execute(
+        select(Material)
+        .options(
+            selectinload(Material.flashcards),
+        )
+        .where(Material.id == material_id)
+    )
+    material = result.unique().scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+
+    if material.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+
+    # Map processing status to stage information
+    stage_mapping = {
+        ProcessingStatus.QUEUED: {
+            "stage": 0,
+            "stage_key": "queued",
+            "stage_text": "Waiting to start processing...",
+        },
+        ProcessingStatus.PROCESSING: {
+            "stage": min(max(material.processing_progress // 14, 1), 6),
+            "stage_key": "processing",
+            "stage_text": "Processing content...",
+        },
+        ProcessingStatus.COMPLETED: {
+            "stage": 7,
+            "stage_key": "complete",
+            "stage_text": "Processing complete!",
+        },
+        ProcessingStatus.FAILED: {
+            "stage": -1,
+            "stage_key": "failed",
+            "stage_text": "Processing failed",
+        },
+    }
+    
+    stage_info = stage_mapping.get(material.processing_status, stage_mapping[ProcessingStatus.QUEUED])
+
+    return {
+        "material_id": str(material.id),
+        "status": material.processing_status.value,
+        "progress": material.processing_progress or 0,
+        "error": material.processing_error,
+        "stage": stage_info["stage"],
+        "stage_key": stage_info["stage_key"],
+        "stage_text": stage_info["stage_text"],
+        "has_summary": material.full_text is not None,
+        "has_flashcards": hasattr(material, 'flashcards') and bool(material.flashcards),
+        "has_quiz": hasattr(material, 'quizzes') and bool(material.quizzes),
+    }

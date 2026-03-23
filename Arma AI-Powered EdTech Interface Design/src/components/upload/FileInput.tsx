@@ -135,7 +135,7 @@ function FileInput({ file, onAdd, onDelete }: FileInputProps) {
       ) : (
         <>
           <div
-            className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-4 ${
+            className={`w-16 h-16 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-4 ${
               file
                 ? "bg-primary/20 text-primary"
                 : "bg-white/5 text-white/40"

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Youtube, Link as LinkIcon, Loader2, CheckCircle, AlertCircle, Folder, BookOpen, BrainCircuit, ClipboardList, Trash2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, FileText, Youtube, Link as LinkIcon, Loader2, CheckCircle, AlertCircle, Folder, BookOpen, BrainCircuit, ClipboardList, Trash2, MessageSquare, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useProject, useProjectContent, useMaterialContent, useTutorChat } from '../hooks/useApi';
 import { toast } from 'sonner';
-import { projectsApi } from '../services/api';
+import { projectsApi, materialsApi } from '../services/api';
 import { FlashcardsTab } from '../components/dashboard/tabs/FlashcardsTab';
 import { QuizTab } from '../components/dashboard/tabs/QuizTab';
 import { ChatTab } from '../components/dashboard/tabs/ChatTab';
+import { ProcessingModal, ProgressiveReveal, OnboardingTour, DashboardHero } from '../components/dashboard';
+import { useMaterialUpload } from '../hooks/useMaterialUpload';
 
 export function ProjectDetailView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -26,6 +28,40 @@ export function ProjectDetailView() {
   );
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Upload flow with processing modal
+  const {
+    uploading,
+    showProcessingModal,
+    status: uploadStatus,
+    isComplete: uploadComplete,
+    isFailed: uploadFailed,
+    statusError: uploadError,
+    startUpload,
+    handleCloseModal,
+  } = useMaterialUpload(refetch);
+
+  // Auto-refresh only materials that are still processing (no UI refetch animation)
+  useEffect(() => {
+    if (!projectId || !project) return;
+
+    // Check if any material is still processing (case-insensitive)
+    const hasProcessingMaterials = project.materials.some(
+      m => {
+        const status = (m.processing_status || '').toLowerCase();
+        return status === 'queued' || status === 'processing';
+      }
+    );
+
+    if (!hasProcessingMaterials) return;
+
+    // Silent refresh every 5 seconds only for processing materials
+    const interval = setInterval(async () => {
+      await refetch(false); // Don't show loading animation
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [projectId, project?.materials.map(m => `${m.id}-${m.processing_status}`).join(','), refetch]);
+
   useEffect(() => {
     if (!project || loading) {
       return;
@@ -35,6 +71,83 @@ export function ProjectDetailView() {
       navigate(`/dashboard/materials/${project.materials[0].id}`, { replace: true });
     }
   }, [project, loading, navigate]);
+
+  // Upload handlers
+  const handleUploadPDF = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.docx,.doc,.txt,.md,.html,.rtf,.odt,.epub';
+    input.multiple = false;
+
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        await startUpload(async () => {
+          const formData = new FormData();
+          formData.append('title', file.name);
+          formData.append('material_type', 'pdf');
+          formData.append('file', file);
+          if (projectId) {
+            formData.append('project_id', projectId);
+          }
+
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/materials`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload failed');
+          }
+
+          const material = await response.json();
+          return material.id;
+        });
+      } catch (error) {
+        console.error('[handleUploadPDF] Error:', error);
+      }
+    };
+
+    input.click();
+  };
+
+  const handleUploadYouTube = async () => {
+    const url = prompt('Enter YouTube URL:');
+    if (!url) return;
+
+    await startUpload(async () => {
+      const formData = new FormData();
+      formData.append('title', `YouTube: ${url}`);
+      formData.append('material_type', 'youtube');
+      formData.append('source', url);
+      if (projectId) {
+        formData.append('project_id', projectId);
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/materials`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Upload failed');
+      }
+
+      const material = await response.json();
+      // Don't refetch here - let the polling handle status updates
+      return material.id;
+    });
+  };
 
   const handleDeleteProject = async () => {
     if (!project) return;
@@ -146,14 +259,24 @@ export function ProjectDetailView() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleDeleteProject}
-              disabled={isDeleting || !project}
-              className="flex w-auto items-center justify-center gap-2 rounded-lg bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50 cursor-pointer"
-            >
-              {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              <span className="hidden sm:inline text-sm font-medium">Delete Project</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleUploadPDF}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FF8A3D] text-white rounded-lg hover:bg-[#FF8A3D]/90 transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
+              >
+                <Plus size={16} />
+                <span className="hidden sm:inline">Add Material</span>
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={isDeleting || !project}
+                className="flex w-auto items-center justify-center gap-2 rounded-lg bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                <span className="hidden sm:inline text-sm font-medium">Delete Project</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -272,33 +395,54 @@ export function ProjectDetailView() {
           <>
             {/* Materials Tab */}
             {activeTab === 'materials' && project && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                {project.materials.map((material) => (
-                  <div
-                    key={material.id}
-                    onClick={() => navigate(`/dashboard/materials/${material.id}`)}
-                    className="group cursor-pointer p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/20 transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getMaterialColor(material.type)}`}>
-                        {getMaterialIcon(material.type)}
-                      </div>
-                      {getStatusBadge(material.processing_status, material.processing_progress)}
-                    </div>
-                    <h3 className="text-base font-medium text-white/90 mb-3 line-clamp-2">
-                      {material.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-white/40">
-                      <FileText size={12} />
-                      <span className="uppercase">{material.type}</span>
-                    </div>
+              <>
+                {/* Hero Section for empty state - NEW */}
+                {project.materials.length === 0 && (
+                  <div className="py-12">
+                    <DashboardHero
+                      onUploadPDF={handleUploadPDF}
+                      onUploadVideo={handleUploadYouTube}
+                      onUploadNotes={handleUploadPDF}
+                      isUploading={uploading}
+                    />
                   </div>
-                ))}
-              </motion.div>
+                )}
+
+                {/* Materials Grid */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8"
+                >
+                  {project.materials.map((material, index) => (
+                    <ProgressiveReveal
+                      key={material.id}
+                      sectionId={material.id}
+                      delay={200}
+                      staggerDelay={index * 100}
+                    >
+                      <div
+                        onClick={() => navigate(`/dashboard/materials/${material.id}`)}
+                        className="group cursor-pointer p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/20 transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getMaterialColor(material.type)}`}>
+                            {getMaterialIcon(material.type)}
+                          </div>
+                          {getStatusBadge(material.processing_status, material.processing_progress)}
+                        </div>
+                        <h3 className="text-base font-medium text-white/90 mb-3 line-clamp-2">
+                          {material.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-white/40">
+                          <FileText size={12} />
+                          <span className="uppercase">{material.type}</span>
+                        </div>
+                      </div>
+                    </ProgressiveReveal>
+                  ))}
+                </motion.div>
+              </>
             )}
 
             {/* Chat Tab */}
@@ -732,6 +876,19 @@ export function ProjectDetailView() {
           </>
         )}
       </div>
+
+      {/* Processing Modal */}
+      <ProcessingModal
+        isOpen={showProcessingModal}
+        realProgress={uploadStatus?.progress || 0}
+        isComplete={uploadComplete}
+        isError={uploadFailed}
+        errorMessage={uploadError}
+        onClose={handleCloseModal}
+      />
+
+      {/* Onboarding Tour */}
+      <OnboardingTour />
     </div>
   );
 }

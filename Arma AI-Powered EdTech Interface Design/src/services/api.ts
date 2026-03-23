@@ -224,6 +224,22 @@ export const materialsApi = {
     await apiClient.post(`/materials/${id}/retry`);
   },
 
+  getProcessingStatus: async (id: string): Promise<{
+    material_id: string;
+    status: string;
+    progress: number;
+    error?: string | null;
+    stage: number;
+    stage_key: string;
+    stage_text: string;
+    has_summary: boolean;
+    has_flashcards: boolean;
+    has_quiz: boolean;
+  }> => {
+    const response = await apiClient.get(`/materials/${id}/processing-status`);
+    return response.data;
+  },
+
   // Summary
   getSummary: async (id: string): Promise<MaterialSummary | null> => {
     try {

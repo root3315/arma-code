@@ -612,21 +612,27 @@ export function useProject(projectId: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProject = async () => {
+  const fetchProject = async (showLoading = true) => {
     if (!projectId) {
       setLoading(false);
-      return;
+      return null;
     }
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
       const data = await projectsApi.get(projectId);
       setProject(data);
+      return data;
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load project');
+      return null;
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
