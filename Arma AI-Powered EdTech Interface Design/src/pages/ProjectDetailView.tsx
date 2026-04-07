@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Youtube, Link as LinkIcon, Loader2, CheckCircle, AlertCircle, Folder, BookOpen, BrainCircuit, ClipboardList, Trash2, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, FileText, Youtube, Link as LinkIcon, Loader2, CheckCircle, AlertCircle, Folder, BookOpen, BrainCircuit, ClipboardList, Trash2, MessageSquare, Plus, Lock, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useProject, useProjectContent, useMaterialContent, useTutorChat } from '../hooks/useApi';
+import { useProjectProgress } from '../hooks/useProjectProgress';
 import { toast } from 'sonner';
 import { projectsApi, materialsApi } from '../services/api';
 import { FlashcardsTab } from '../components/dashboard/tabs/FlashcardsTab';
@@ -18,7 +19,9 @@ export function ProjectDetailView() {
   const navigate = useNavigate();
   const { project, loading, refetch } = useProject(projectId || null);
   const { content, loading: contentLoading } = useProjectContent(projectId || null);
+  const { progress, markSummaryRead, markFlashcardsComplete } = useProjectProgress(projectId || null);
   const [activeTab, setActiveTab] = useState<'chat' | 'materials' | 'summary' | 'flashcards' | 'quiz'>('materials');
+  const [showCelebration, setShowCelebration] = useState(false);
   const [viewMode, setViewMode] = useState<'all' | 'single'>('all');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const { content: materialContent, loading: materialLoading } = useMaterialContent(selectedMaterialId);
@@ -61,16 +64,6 @@ export function ProjectDetailView() {
 
     return () => clearInterval(interval);
   }, [projectId, project?.materials.map(m => `${m.id}-${m.processing_status}`).join(','), refetch]);
-
-  useEffect(() => {
-    if (!project || loading) {
-      return;
-    }
-
-    if (project.materials.length === 1) {
-      navigate(`/dashboard/materials/${project.materials[0].id}`, { replace: true });
-    }
-  }, [project, loading, navigate]);
 
   // Upload handlers
   const handleUploadPDF = async () => {
@@ -319,26 +312,50 @@ export function ProjectDetailView() {
               Summary
             </button>
             <button
-              onClick={() => setActiveTab('flashcards')}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
+              onClick={() => {
+                if (progress?.flashcards_unlocked) setActiveTab('flashcards');
+              }}
+              disabled={!progress?.flashcards_unlocked}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'flashcards'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-white/40 hover:text-white/60'
+                  ? 'border-primary text-primary cursor-pointer'
+                  : progress?.flashcards_unlocked
+                    ? 'border-transparent text-white/40 hover:text-white/60 cursor-pointer'
+                    : 'border-transparent text-white/20 cursor-not-allowed'
               }`}
             >
-              <BrainCircuit size={16} />
+              {progress?.flashcards_unlocked ? (
+                <BrainCircuit size={16} />
+              ) : (
+                <Lock size={16} />
+              )}
               Flashcards
+              {!progress?.flashcards_unlocked && (
+                <span className="text-[10px] text-white/20 ml-1">(read summary first)</span>
+              )}
             </button>
             <button
-              onClick={() => setActiveTab('quiz')}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
+              onClick={() => {
+                if (progress?.quiz_unlocked) setActiveTab('quiz');
+              }}
+              disabled={!progress?.quiz_unlocked}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'quiz'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-white/40 hover:text-white/60'
+                  ? 'border-primary text-primary cursor-pointer'
+                  : progress?.quiz_unlocked
+                    ? 'border-transparent text-white/40 hover:text-white/60 cursor-pointer'
+                    : 'border-transparent text-white/20 cursor-not-allowed'
               }`}
             >
-              <ClipboardList size={16} />
+              {progress?.quiz_unlocked ? (
+                <ClipboardList size={16} />
+              ) : (
+                <Lock size={16} />
+              )}
               Quiz
+              {!progress?.quiz_unlocked && (
+                <span className="text-[10px] text-white/20 ml-1">(complete flashcards first)</span>
+              )}
             </button>
 
             {/* View Mode Toggle - for flashcards, quiz, and chat tabs */}
@@ -636,6 +653,101 @@ export function ProjectDetailView() {
                         <div className="text-2xl font-semibold text-white">{content.quiz?.length || 0}</div>
                       </div>
                     </div>
+
+                    {/* Mark as Read Button */}
+                    {!progress?.summary_read ? (
+                      <div className="flex justify-center pt-4">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await markSummaryRead();
+                              setShowCelebration(true);
+                              setTimeout(() => {
+                                setShowCelebration(false);
+                                setActiveTab('flashcards');
+                              }, 2500);
+                            } catch {
+                              toast.error('Failed to mark summary as read');
+                            }
+                          }}
+                          className="cursor-pointer flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 text-emerald-400 rounded-xl font-bold hover:from-emerald-500/20 hover:to-emerald-500/10 transition-all text-lg"
+                        >
+                          <CheckCircle2 size={24} />
+                          I've Read This — Unlock Flashcards
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex justify-center pt-4">
+                        <div className="flex items-center gap-2 px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm">
+                          <CheckCircle size={16} />
+                          Summary read — Flashcards unlocked
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Celebration Overlay */}
+                    {showCelebration && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                      >
+                        <motion.div
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                          className="text-center"
+                        >
+                          <div className="text-6xl mb-6">🎉</div>
+                          <motion.h2
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-4xl font-bold text-white mb-3"
+                          >
+                            You're Awesome!
+                          </motion.h2>
+                          <motion.p
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="text-xl text-emerald-400 mb-2"
+                          >
+                            Summary complete!
+                          </motion.p>
+                          <motion.p
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.6 }}
+                            className="text-white/60"
+                          >
+                            Opening flashcards...
+                          </motion.p>
+
+                          {['🎊', '✨', '🌟', '💫', '🎯'].map((emoji, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ y: 0, x: 0, opacity: 1, scale: 0 }}
+                              animate={{
+                                y: [-20, -80 - i * 20],
+                                x: [(i - 2) * 30, (i - 2) * 50],
+                                opacity: [1, 0],
+                                scale: [0, 1.5, 0],
+                              }}
+                              transition={{ delay: 0.3 + i * 0.1, duration: 1.5 }}
+                              className="absolute text-3xl"
+                              style={{
+                                left: `${45 + (i - 2) * 8}%`,
+                                top: '40%',
+                              }}
+                            >
+                              {emoji}
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      </motion.div>
+                    )}
                   </>
                 ) : viewMode === 'single' && selectedMaterialId && materialContent ? (
                   <>
@@ -773,6 +885,14 @@ export function ProjectDetailView() {
                     flashcards={content.flashcards}
                     loading={contentLoading}
                     viewMode="all"
+                    onComplete={async () => {
+                      try {
+                        await markFlashcardsComplete();
+                        toast.success('Flashcards completed! Quiz unlocked 🎉');
+                      } catch {
+                        toast.error('Failed to mark flashcards as complete');
+                      }
+                    }}
                   />
                 ) : viewMode === 'single' && selectedMaterialId ? (
                   materialLoading ? (
@@ -789,6 +909,14 @@ export function ProjectDetailView() {
                           flashcards={materialContent.flashcards}
                           loading={false}
                           viewMode="single"
+                          onComplete={async () => {
+                            try {
+                              await markFlashcardsComplete();
+                              toast.success('Flashcards completed! Quiz unlocked 🎉');
+                            } catch {
+                              toast.error('Failed to mark flashcards as complete');
+                            }
+                          }}
                         />
                       );
                     })()

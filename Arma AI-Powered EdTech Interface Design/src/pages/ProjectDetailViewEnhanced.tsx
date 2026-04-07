@@ -57,11 +57,7 @@ export function ProjectDetailViewEnhanced() {
     if (!project || loading) {
       return;
     }
-
-    if (project.materials.length === 1) {
-      navigate(`/dashboard/materials/${project.materials[0].id}`, { replace: true });
-    }
-  }, [project, loading, navigate]);
+  }, [project, loading]);
 
   // Upload handlers
   const handleUploadPDF = useCallback(async () => {

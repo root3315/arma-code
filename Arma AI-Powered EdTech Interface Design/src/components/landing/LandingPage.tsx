@@ -3,12 +3,15 @@ import { motion } from 'motion/react';
 import { ArrowRight, Brain, Play, FileText, MessageSquare, Headphones, MonitorPlay, CheckCircle2, ChevronRight, Upload, Sparkles, Youtube, Check } from 'lucide-react';
 import { AICore } from '../shared/AICore';
 import { Header } from '../ui/header';
+import { useNavigate } from 'react-router-dom';
 
 interface LandingPageProps {
   onStart: () => void;
 }
 
 export function LandingPage({ onStart }: LandingPageProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0C0C0F] text-foreground overflow-hidden font-sans selection:bg-primary/20 selection:text-primary relative">
       
@@ -303,7 +306,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           <div className="flex items-center gap-8 text-sm text-white/40">
             <a href="#" className="hover:text-white transition-colors">Product</a>
             <a href="#" className="hover:text-white transition-colors">About arma</a>
-            <a href="#" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#" onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">Pricing</a>
           </div>
           
           <div className="text-sm text-white/20">

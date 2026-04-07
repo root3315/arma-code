@@ -5,9 +5,27 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { AICore } from '../components/shared/AICore';
 import { Header } from '@/components/ui/header';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.07, delayChildren: 0.15 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  },
+};
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,8 +46,8 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Пароль должен быть минимум 6 символов');
+    if (formData.password.length < 8) {
+      toast.error('Пароль должен быть минимум 8 символов');
       return;
     }
 
@@ -44,8 +62,12 @@ export const RegisterPage: React.FC = () => {
       toast.success('Регистрация успешна! Добро пожаловать!');
       navigate('/dashboard');
     } catch (error: any) {
-      const message = error.response?.data?.detail[0].msg || 'Ошибка регистрации. Попробуйте другой email.';
-      console.log(message);
+      const detail = error.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((e: any) => e.msg).join(', ')
+        : typeof detail === 'string'
+          ? detail
+          : 'Ошибка регистрации. Попробуйте другой email.';
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -54,105 +76,121 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0C0C0F' }}>
-      
+
       <Header />
 
       {/* Background AI Core */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-20">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 0.2, scale: 1 }}
+        transition={{ duration: 2, ease: 'easeOut' }}
+        className="absolute inset-0 flex items-center justify-center"
+      >
         <AICore size="xl" />
-      </div>
+      </motion.div>
 
       {/* Register Card */}
-      <Card className="w-full py-6 max-w-md relative z-10 glass-panel border-white/10">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-white">Регистрация в Arma AI</CardTitle>
-          <CardDescription className="text-white/60">
-            Создайте аккаунт для начала обучения
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name" className="text-white/80">
-                Полное имя
-              </Label>
-              <Input
-                id="full_name"
-                type="text"
-                placeholder="Иван Иванов"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="w-full max-w-md relative z-10"
+      >
+        <Card className="w-full py-6 glass-panel border-white/10">
+          <motion.div variants={itemVariants}>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-white">Регистрация в Arma AI</CardTitle>
+              <CardDescription className="text-white/60">
+                Создайте аккаунт для начала обучения
+              </CardDescription>
+            </CardHeader>
+          </motion.div>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="full_name" className="text-white/80">
+                  Полное имя
+                </Label>
+                <Input
+                  id="full_name"
+                  type="text"
+                  placeholder="Иван Иванов"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white/80">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="email" className="text-white/80">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/80">
-                Пароль
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="password" className="text-white/80">
+                  Пароль
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-white/80">
-                Подтвердите пароль
-              </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-white/80">
+                  Подтвердите пароль
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <Button
-              type="submit"
-              className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-            </Button>
+              <motion.div variants={itemVariants}>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+                </Button>
+              </motion.div>
 
-            <p className="text-center text-sm text-white/60 mt-4">
-              Уже есть аккаунт?{' '}
-              <Link to="/login" className="text-[#FF8A3D] hover:underline">
-                Войти
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+              <motion.p variants={itemVariants} className="text-center text-sm text-white/60 mt-4">
+                Уже есть аккаунт?{' '}
+                <Link to="/login" className="text-[#FF8A3D] hover:underline">
+                  Войти
+                </Link>
+              </motion.p>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 };

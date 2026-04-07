@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Play, CheckCircle2, Loader2, ChevronLeft, ChevronRight, RotateCw, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,16 +11,26 @@ export interface FlashcardsTabProps {
     flashcards: FlashcardItem[];
     loading: boolean;
     viewMode?: 'all' | 'single';
+    onComplete?: () => void;
 }
 
 const PREVIEW_COUNT = 3;
 
-export function FlashcardsTab({ material, flashcards, loading, viewMode = 'single' }: FlashcardsTabProps) {
+export function FlashcardsTab({ material, flashcards, loading, viewMode = 'single', onComplete }: FlashcardsTabProps) {
     const [reviewStarted, setReviewStarted] = useState(false);
     const [currentCard, setCurrentCard] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
     const [knownCards, setKnownCards] = useState<number[]>([]);
     const [learningCards, setLearningCards] = useState<number[]>([]);
+    const [hasNotifiedComplete, setHasNotifiedComplete] = useState(false);
+
+    // Notify parent when all cards are reviewed
+    useEffect(() => {
+        if (reviewStarted && knownCards.length + learningCards.length === flashcards.length && !hasNotifiedComplete) {
+            setHasNotifiedComplete(true);
+            onComplete?.();
+        }
+    }, [knownCards.length, learningCards.length, flashcards.length, reviewStarted, hasNotifiedComplete, onComplete]);
 
     // Debug
     // console.log('=== FlashcardsTab DEBUG ===', {
@@ -122,6 +132,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
     // Active Review Session
     if (reviewStarted) {
         const card = flashcards[currentCard];
+        const progressPercent = ((knownCards.length + learningCards.length) / flashcards.length) * 100;
 
         return (
             <div className="h-full flex flex-col items-center justify-center p-8">
@@ -131,28 +142,35 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                         <span>Card {currentCard + 1} of {flashcards.length}</span>
                         <span>{knownCards.length} known • {learningCards.length} learning</span>
                     </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-3 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-primary to-amber-400"
+                            key={`progress-${knownCards.length + learningCards.length}`}
+                            className="h-full bg-gradient-to-r from-primary to-amber-400 rounded-full"
                             initial={{ width: 0 }}
-                            animate={{ width: `${((currentCard + 1) / flashcards.length) * 100}%` }}
-                            transition={{ duration: 0.3 }}
+                            animate={{ width: `${progressPercent}%` }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
                         />
                     </div>
                 </div>
 
                 {/* Flashcard */}
                 <div className="w-full max-w-2xl mb-10">
-                    <div
-                        className="relative h-96 cursor-pointer"
-                        onClick={() => setIsFlipped(!isFlipped)}
-                    >
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={`card-${currentCard}`}
+                            initial={{ opacity: 0, x: 40 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -40 }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="relative h-96 cursor-pointer"
+                            onClick={() => setIsFlipped(!isFlipped)}
+                        >
                         <motion.div
                             className="w-full h-full"
                             initial={false}
                             animate={{ rotateY: isFlipped ? 180 : 0 }}
-                            transition={{ duration: 0.6, type: "spring" }}
-                            style={{ transformStyle: "preserve-3d" }}
+                            transition={{ duration: 0.6, type: 'spring' }}
+                            style={{ transformStyle: 'preserve-3d' }}
                         >
                             {/* Front */}
                             <div
@@ -170,7 +188,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                             {/* Back */}
                             <div
                                 className="absolute inset-0 p-10 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex flex-col items-center justify-center text-center"
-                                style={{ 
+                                style={{
                                     backfaceVisibility: 'hidden',
                                     transform: 'rotateY(180deg)'
                                 }}
@@ -179,12 +197,15 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                 <p className="text-2xl text-white leading-relaxed max-w-lg">{card.answer}</p>
                             </div>
                         </motion.div>
-                    </div>
+                    </motion.div>
+                    </AnimatePresence>
                 </div>
 
                 {/* Controls */}
-                <div className="flex gap-4">
-                    <button
+                <div className="flex gap-4 w-full max-w-2xl">
+                    <motion.button
+                        whileHover={{ scale: 1.03, y: -2 }}
+                        whileTap={{ scale: 0.97 }}
                         onClick={() => {
                             setLearningCards([...learningCards, currentCard]);
                             if (currentCard < flashcards.length - 1) {
@@ -192,12 +213,14 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                 setIsFlipped(false);
                             }
                         }}
-                        className="px-10 py-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 font-bold hover:bg-red-500/20 transition-all flex items-center gap-3"
+                        className="flex-1 px-6 py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 font-bold hover:bg-red-500/20 hover:border-red-500/40 transition-all flex items-center justify-center gap-2"
                     >
-                        <X size={20} />
+                        <X size={18} />
                         <span>Still Learning</span>
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: 1.03, y: -2 }}
+                        whileTap={{ scale: 0.97 }}
                         onClick={() => {
                             setKnownCards([...knownCards, currentCard]);
                             if (currentCard < flashcards.length - 1) {
@@ -205,11 +228,11 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                 setIsFlipped(false);
                             }
                         }}
-                        className="px-10 py-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold hover:bg-emerald-500/20 transition-all flex items-center gap-3"
+                        className="flex-1 px-6 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all flex items-center justify-center gap-2"
                     >
-                        <CheckCircle2 size={20} />
+                        <CheckCircle2 size={18} />
                         <span>Know It</span>
-                    </button>
+                    </motion.button>
                 </div>
             </div>
         );

@@ -5,12 +5,28 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { AICore } from '../components/shared/AICore';
 import { Brain, ChevronRight } from 'lucide-react';
 import { Header } from '@/components/ui/header';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.2 },
+  },
+};
 
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  },
+};
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,10 +47,9 @@ export const LoginPage: React.FC = () => {
       navigate('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Ошибка входа. Проверьте email и пароль.';
-      toast.error(message);
-      alert(error)
+      toast.error(typeof message === 'string' ? message : 'Ошибка входа. Проверьте email и пароль.');
     } finally {
-      // setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -42,69 +57,85 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0C0C0F' }}>
       <Header />
       {/* Background AI Core */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-20">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 0.2, scale: 1 }}
+        transition={{ duration: 2, ease: 'easeOut' }}
+        className="absolute inset-0 flex items-center justify-center"
+      >
         <AICore size="xl" />
-      </div>
+      </motion.div>
 
       {/* Login Card */}
-      <Card className="w-full py-6 max-w-md relative z-10 glass-panel border-white/10">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-white">Вход в Arma AI</CardTitle>
-          <CardDescription className="text-white/60">
-            Введите свои данные для доступа к платформе
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white/80">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="w-full max-w-md relative z-10"
+      >
+        <Card className="w-full py-6 glass-panel border-white/10">
+          <motion.div variants={itemVariants}>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-white">Вход в Arma AI</CardTitle>
+              <CardDescription className="text-white/60">
+                Введите свои данные для доступа к платформе
+              </CardDescription>
+            </CardHeader>
+          </motion.div>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="email" className="text-white/80">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/80">
-                Пароль
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-                disabled={isLoading}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="password" className="text-white/80">
+                  Пароль
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+              </motion.div>
 
-            <Button
-              type="submit"
-              className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer" 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Вход...' : 'Войти'}
-            </Button>
+              <motion.div variants={itemVariants}>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Вход...' : 'Войти'}
+                </Button>
+              </motion.div>
 
-            <p className="text-center text-sm text-white/60 mt-4">
-              Нет аккаунта?{' '}
-              <Link to="/register" className="text-[#FF8A3D] hover:underline">
-                Зарегистрироваться
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+              <motion.p variants={itemVariants} className="text-center text-sm text-white/60 mt-4">
+                Нет аккаунта?{' '}
+                <Link to="/register" className="text-[#FF8A3D] hover:underline">
+                  Зарегистрироваться
+                </Link>
+              </motion.p>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 };

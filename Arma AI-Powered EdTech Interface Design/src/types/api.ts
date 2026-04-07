@@ -239,3 +239,34 @@ export interface SearchResponse {
   pending_types: SearchResultType[];
   cached: boolean;
 }
+
+// Project Progress
+export interface ProjectProgress {
+  id: string;
+  project_id: string;
+  summary_read: boolean;
+  summary_read_at: string | null;
+  flashcards_unlocked: boolean;
+  flashcards_unlocked_at: string | null;
+  flashcards_completed: boolean;
+  flashcards_completed_at: string | null;
+  quiz_unlocked: boolean;
+  quiz_unlocked_at: string | null;
+  quiz_completed: boolean;
+  quiz_completed_at: string | null;
+  quiz_best_score: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarkSummaryReadResponse {
+  summary_read: boolean;
+  summary_read_at: string;
+  flashcards_unlocked: boolean;
+}
+
+export interface MarkFlashcardsCompleteResponse {
+  flashcards_completed: boolean;
+  flashcards_completed_at: string;
+  quiz_unlocked: boolean;
+}

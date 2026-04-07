@@ -22,6 +22,9 @@ import type {
   BillingInfo,
   UsageSummary,
   PlanTier,
+  ProjectProgress,
+  MarkSummaryReadResponse,
+  MarkFlashcardsCompleteResponse,
 } from '../types/api';
 
 // Base configuration
@@ -49,10 +52,15 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Don't redirect on auth endpoints (login/register) — let the caller handle it
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     if (error.response?.status === 402) {
       // Dispatch quota-exceeded event for global UpgradeModal
@@ -80,6 +88,15 @@ export const authApi = {
   getMe: async (): Promise<User> => {
     const response = await apiClient.get<User>('/auth/me');
     return response.data;
+  },
+
+  updateMe: async (data: { full_name?: string; email?: string }): Promise<User> => {
+    const response = await apiClient.put<User>('/auth/me', data);
+    return response.data;
+  },
+
+  changePassword: async (data: { current_password: string; new_password: string }): Promise<void> => {
+    await apiClient.post('/auth/me/change-password', data);
   },
 };
 
@@ -485,6 +502,26 @@ export const projectsApi = {
     return response.data;
   },
 
+};
+
+// ============================================================================
+// PROJECT PROGRESS API
+// ============================================================================
+export const projectProgressApi = {
+  get: async (projectId: string): Promise<ProjectProgress> => {
+    const response = await apiClient.get<ProjectProgress>(`/projects/${projectId}/progress`);
+    return response.data;
+  },
+
+  markSummaryRead: async (projectId: string): Promise<MarkSummaryReadResponse> => {
+    const response = await apiClient.post<MarkSummaryReadResponse>(`/projects/${projectId}/progress/mark-summary-read`);
+    return response.data;
+  },
+
+  markFlashcardsComplete: async (projectId: string): Promise<MarkFlashcardsCompleteResponse> => {
+    const response = await apiClient.post<MarkFlashcardsCompleteResponse>(`/projects/${projectId}/progress/mark-flashcards-complete`);
+    return response.data;
+  },
 };
 
 // ============================================================================

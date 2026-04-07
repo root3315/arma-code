@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { User, Lock, Bell, Moon, LogOut, ChevronRight, Shield, Key, CreditCard, Zap } from 'lucide-react';
+import { User, LogOut, ChevronRight, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { billingApi } from '../../services/api';
+import { authApi, billingApi } from '../../services/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { UsageSummary } from '../../types/api';
 
 export function ProfileView() {
   const [activeTab, setActiveTab] = useState('Account');
   const [searchParams] = useSearchParams();
-  const { refreshSubscription } = useAuth();
+  const { user, refreshSubscription } = useAuth();
 
   useEffect(() => {
     if (searchParams.get('checkout') === 'success') {
@@ -27,7 +26,7 @@ export function ProfileView() {
          <div className="grid md:grid-cols-[240px_1fr] gap-4 md:gap-8">
             {/* Sidebar */}
             <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible scrollbar-hide">
-               {['Account', 'Billing', 'Notifications', 'Privacy & Security', 'Appearance'].map(tab => (
+               {['Account', 'Billing', 'Security'].map(tab => (
                  <button
                    key={tab}
                    onClick={() => setActiveTab(tab)}
@@ -43,10 +42,7 @@ export function ProfileView() {
                ))}
 
                <div className="pt-4 mt-4 border-t border-white/5">
-                 <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                    <LogOut size={16} />
-                    Log Out
-                 </button>
+                 <LogoutButton />
                </div>
             </div>
 
@@ -54,13 +50,32 @@ export function ProfileView() {
             <div className="space-y-6">
                {activeTab === 'Account' && <AccountSettings />}
                {activeTab === 'Billing' && <BillingSettings />}
-               {activeTab === 'Privacy & Security' && <PrivacySettings />}
-               {activeTab === 'Notifications' && <NotificationSettings />}
-               {activeTab === 'Appearance' && <AppearanceSettings />}
+               {activeTab === 'Security' && <SecuritySettings />}
             </div>
          </div>
       </div>
     </div>
+  );
+}
+
+function LogoutButton() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    toast.success('Logged out successfully');
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+    >
+      <LogOut size={16} />
+      Log Out
+    </button>
   );
 }
 
@@ -191,87 +206,208 @@ function BillingSettings() {
 }
 
 function AccountSettings() {
+  const { user, refreshUser } = useAuth();
+  const [fullName, setFullName] = useState(user?.full_name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const initials = fullName
+    ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) {
+      toast.error('File size must be less than 1MB');
+      return;
+    }
+
+    if (!file.type.match(/^image\/(jpeg|png|jpg)$/)) {
+      toast.error('Only JPG or PNG files are allowed');
+      return;
+    }
+
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    if (!fullName.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await authApi.updateMe({ full_name: fullName, email });
+      await refreshUser();
+      toast.success('Profile updated successfully');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
        <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5">
           <h2 className="text-lg font-medium text-white mb-6">Profile Details</h2>
+
+          {/* Avatar */}
           <div className="flex items-center gap-6 mb-8">
-             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center text-xl font-medium text-white">JD</div>
+             <div className="relative">
+               {avatarPreview ? (
+                 <img src={avatarPreview} alt="Avatar" className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border border-white/10" />
+               ) : (
+                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-primary/20 to-primary/5 border border-white/10 flex items-center justify-center text-lg font-medium text-primary">
+                   {initials}
+                 </div>
+               )}
+             </div>
              <div>
-                <button className="px-4 py-2 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors mb-2">Change Avatar</button>
+                <label className="cursor-pointer px-4 py-2 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors inline-block mb-2">
+                  Change Avatar
+                  <input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handleAvatarChange} className="hidden" />
+                </label>
                 <p className="text-xs text-white/30">JPG or PNG. Max 1MB.</p>
              </div>
           </div>
 
+          {/* Form */}
           <div className="grid gap-4">
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                   <label className="text-xs text-white/40 uppercase tracking-wider">First Name</label>
-                   <input type="text" defaultValue="John" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-primary/50 outline-none transition-colors" />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-xs text-white/40 uppercase tracking-wider">Last Name</label>
-                   <input type="text" defaultValue="Doe" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-primary/50 outline-none transition-colors" />
-                </div>
+             <div className="space-y-2">
+                <label className="text-xs text-white/40 uppercase tracking-wider">Full Name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
+                />
              </div>
              <div className="space-y-2">
                 <label className="text-xs text-white/40 uppercase tracking-wider">Email Address</label>
-                <input type="email" defaultValue="john.doe@example.com" className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-primary/50 outline-none transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
+                />
              </div>
           </div>
 
           <div className="mt-6 flex justify-end">
-             <button onClick={() => toast.success('Profile updated')} className="px-6 py-2 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-colors">Save Changes</button>
+             <button
+               onClick={handleSave}
+               disabled={saving}
+               className="px-6 py-2 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               {saving ? 'Saving...' : 'Save Changes'}
+             </button>
           </div>
        </div>
     </div>
   );
 }
 
-function PrivacySettings() {
+function SecuritySettings() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changing, setChanging] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('All fields are required');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    setChanging(true);
+    try {
+      await authApi.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((e: any) => e.msg).join(', ')
+        : typeof detail === 'string'
+          ? detail
+          : 'Failed to change password';
+      toast.error(message);
+    } finally {
+      setChanging(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-       <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-          <h2 className="text-lg font-medium text-white mb-6">Security</h2>
-          <button className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group mb-4">
-             <div className="flex items-center gap-4">
-               <div className="p-2 rounded-lg bg-white/5 text-white/60"><Key size={20} /></div>
-               <div className="text-left">
-                  <div className="text-sm font-medium text-white">Change Password</div>
-                  <div className="text-xs text-white/40">Last changed 3 months ago</div>
-               </div>
-             </div>
-             <ChevronRight size={16} className="text-white/20 group-hover:text-white" />
+      {/* Change Password */}
+      <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+        <h2 className="text-lg font-medium text-white mb-6">Change Password</h2>
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Enter current password"
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-white/40 uppercase tracking-wider">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
+            />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleChangePassword}
+            disabled={changing}
+            className="px-6 py-2 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {changing ? 'Changing...' : 'Change Password'}
           </button>
-          <button className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group">
-             <div className="flex items-center gap-4">
-               <div className="p-2 rounded-lg bg-white/5 text-white/60"><Shield size={20} /></div>
-               <div className="text-left">
-                  <div className="text-sm font-medium text-white">Two-Factor Authentication</div>
-                  <div className="text-xs text-white/40">Not enabled</div>
-               </div>
-             </div>
-             <ChevronRight size={16} className="text-white/20 group-hover:text-white" />
-          </button>
-       </div>
+        </div>
+      </div>
     </div>
   );
-}
-
-function NotificationSettings() {
-   return (
-      <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-white/40 py-20">
-         <Bell size={40} className="mx-auto mb-4 opacity-20" />
-         <p>Notification settings coming soon</p>
-      </div>
-   )
-}
-
-function AppearanceSettings() {
-   return (
-      <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-white/40 py-20">
-         <Moon size={40} className="mx-auto mb-4 opacity-20" />
-         <p>Only Dark Mode is available now.</p>
-      </div>
-   )
 }

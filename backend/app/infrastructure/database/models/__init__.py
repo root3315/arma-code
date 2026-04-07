@@ -13,7 +13,7 @@ from app.infrastructure.database.models.material import (
     ProjectTutorMessage,
 )
 from app.infrastructure.database.models.material_chunk import MaterialChunk
-from app.infrastructure.database.models.project import Project
+from app.infrastructure.database.models.project import Project, ProjectProgress
 from app.infrastructure.database.models.quiz import QuizQuestion
 from app.infrastructure.database.models.flashcard import Flashcard
 from app.infrastructure.database.models.embedding import MaterialEmbedding
@@ -32,6 +32,7 @@ __all__ = [
     "Material",
     "MaterialChunk",
     "Project",
+    "ProjectProgress",
     "ProjectContent",
     "ProjectTutorMessage",
     "MaterialType",

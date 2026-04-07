@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Youtube, Clock, Settings, LogOut, Plus, Search, Bell, Brain, Sparkles, GraduationCap, User, X, Check, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, LogOut, Plus, Brain, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import type { ViewState } from '../../App';
-import { AICore } from '../shared/AICore';
 import { useProjects } from '../../hooks/useApi';
 import { toast } from 'sonner';
 
@@ -19,10 +18,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { projects, refetch } = useProjects();
-  const recentProjects = projects.slice(0, 5); // Get latest 5 projects
-  const [modelName, setModelName] = useState('Arma Neural 1.0');
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(3);
+  const recentProjects = projects.slice(0, 5);
 
   // Listen for project deletion/creation events
   useEffect(() => {
@@ -37,17 +33,6 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
       window.removeEventListener('project-created', handleProjectChanged);
     };
   }, [refetch]);
-
-  const handleModelChange = () => {
-    const newModel = modelName === 'Arma Neural 1.0' ? 'Arma Quantum 2.0 (Beta)' : 'Arma Neural 1.0';
-    setModelName(newModel);
-    toast.success(`Model switched to ${newModel}`);
-  };
-
-  const handleToggleNotifications = () => {
-    setIsNotificationsOpen(!isNotificationsOpen);
-    if (!isNotificationsOpen) setUnreadCount(0);
-  };
 
   const handleLogout = () => {
     logout();
@@ -66,7 +51,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
 
       {/* SIDEBAR */}
       <aside className="w-[280px] flex-shrink-0 hidden md:flex flex-col z-20 relative bg-transparent py-6 pl-4 pr-2">
-        <div className="flex items-center gap-3 mb-10 pl-4" onClick={() => onNavigate('dashboard')}>
+        <div className="flex items-center gap-3 mb-10 pl-4 cursor-pointer" onClick={() => onNavigate('dashboard')}>
            <div className="w-8 h-8 rounded-lg flex items-center justify-center relative">
              <div className="absolute inset-0 bg-primary/20 blur-md rounded-full" />
              <Brain className="w-5 h-5 text-primary relative z-10" />
@@ -76,7 +61,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
 
         <button 
           onClick={onUpload}
-          className="group w-full py-2.5 px-4 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-start gap-3 mb-8 mx-2 max-w-[calc(100%-16px)] backdrop-blur-sm shadow-sm"
+          className="group w-full cursor-pointer py-2.5 px-4 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-start gap-3 mb-8 mx-2 max-w-[calc(100%-16px)] backdrop-blur-sm shadow-sm"
         >
           <div className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-black transition-colors">
             <Plus className="w-3.5 h-3.5" />
@@ -91,17 +76,11 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
             active={currentView === 'dashboard'} 
             onClick={() => onNavigate('dashboard')}
           />
-          <SidebarItem 
-            icon={<FileText size={18} />} 
-            label="Library" 
-            active={currentView === 'library'} 
+          <SidebarItem
+            icon={<FileText size={18} />}
+            label="Projects"
+            active={currentView === 'library'}
             onClick={() => onNavigate('library')}
-          />
-          <SidebarItem 
-            icon={<GraduationCap size={18} />} 
-            label="Exam Prep" 
-            active={currentView === 'exam'} 
-            onClick={() => onNavigate('exam')}
           />
 
           <div className="pt-8 pb-2">
@@ -133,7 +112,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
         <div className="mt-auto px-2 space-y-2">
           <div
             onClick={() => onNavigate('profile')}
-            className={`flex items-center gap-3 p-2 rounded-xl transition-colors group ${currentView === 'profile' ? 'bg-white/10' : 'hover:bg-white/5'}`}
+            className={`flex items-center cursor-pointer gap-3 p-2 rounded-xl transition-colors group ${currentView === 'profile' ? 'bg-white/10' : 'hover:bg-white/5'}`}
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center text-xs text-white/80 font-medium group-hover:border-primary/30 transition-colors">
               {user?.full_name?.charAt(0).toUpperCase() || 'U'}
@@ -151,7 +130,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
           {user?.subscription?.plan_tier !== 'pro' && (
             <button
               onClick={() => navigate('/pricing')}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold hover:bg-primary/20 transition-colors"
+              className="w-full flex items-center cursor-pointer justify-center gap-2 py-2 px-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold hover:bg-primary/20 transition-colors"
             >
               <Sparkles className="w-3 h-3" />
               Upgrade
@@ -160,7 +139,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 p-2 rounded-xl transition-colors group hover:bg-red-500/10"
+            className="w-full flex items-center cursor-pointer gap-3 p-2 rounded-xl transition-colors group hover:bg-red-500/10"
           >
             <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-red-500/30 transition-colors">
               <LogOut className="w-4 h-4 text-white/60 group-hover:text-red-400 transition-colors" />
@@ -175,7 +154,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
         {/* MOBILE BOTTOM NAV */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#0C0C0F] border-t border-white/10 z-50 flex items-center justify-around px-2">
            <MobileNavItem icon={<LayoutDashboard />} label="Home" active={currentView === 'dashboard'} onClick={() => onNavigate('dashboard')} />
-           <MobileNavItem icon={<FileText />} label="Library" active={currentView === 'library'} onClick={() => onNavigate('library')} />
+           <MobileNavItem icon={<FileText />} label="Projects" active={currentView === 'library'} onClick={() => onNavigate('library')} />
            <MobileNavItem icon={<User />} label="Profile" active={currentView === 'profile'} onClick={() => onNavigate('profile')} />
            
            {/* Mobile FAB */}
@@ -192,21 +171,9 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
         {/* TOP BAR */}
         <header className="h-10 md:h-14 flex items-center justify-between px-4 md:px-6 mb-2 flex-shrink-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground/60">
-             <span className="hover:text-white/80 transition-colors" onClick={() => onNavigate('dashboard')}>Arma</span>
+             <span className="hover:text-white/80 transition-colors cursor-pointer" onClick={() => onNavigate('dashboard')}>Arma</span>
              <span>/</span>
              <span className="text-white/90 font-medium capitalize">{currentView ? currentView.replace('-', ' ') : 'Dashboard'}</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-             <div onClick={handleModelChange} className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/70 hover:bg-white/10 transition-colors">
-               <Sparkles className="w-3 h-3 text-primary" />
-               <span>{modelName}</span>
-             </div>
-             
-             <button onClick={() => toast.info('No new notifications')} className="w-9 h-9 rounded-full bg-transparent hover:bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white transition-colors relative">
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-[#0C0C0F]" />
-             </button>
           </div>
         </header>
 
@@ -219,76 +186,6 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
               {children}
            </div>
         </main>
-      </div>
-    </div>
-  );
-}
-
-function NotificationsPanel({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PROCESSING' | 'SYSTEM'>('ALL');
-
-  const notifications = [
-    { id: 1, type: 'success', title: 'Processing Complete', desc: 'Introduction to Psychology is ready.', time: '2m ago', icon: <CheckCircle2 size={16} className="text-emerald-400" /> },
-    { id: 2, type: 'system', title: 'System Update', desc: 'Arma Quantum 2.0 is now available.', time: '1h ago', icon: <Sparkles size={16} className="text-primary" /> },
-    { id: 3, type: 'processing', title: 'Processing...', desc: 'Analyzing "Advanced Calculus"...', time: '5m ago', icon: <Clock size={16} className="text-amber-400" /> },
-  ];
-
-  const filtered = activeTab === 'ALL' 
-    ? notifications 
-    : activeTab === 'PROCESSING' 
-      ? notifications.filter(n => n.type === 'processing') 
-      : notifications.filter(n => n.type === 'system');
-
-  return (
-    <div className="flex flex-col max-h-[500px]">
-      <div className="p-4 border-b border-white/5 flex items-center justify-between">
-         <h3 className="font-medium text-white">Notifications</h3>
-         <div className="flex items-center gap-3">
-             <button onClick={() => toast.success("Marked all as read")} className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors">Mark all read</button>
-             <button onClick={onClose} className="text-white/40 hover:text-white"><X size={16} /></button>
-         </div>
-      </div>
-      
-      <div className="flex items-center gap-1 p-2 border-b border-white/5">
-         {['ALL', 'PROCESSING', 'SYSTEM'].map(tab => (
-           <button 
-             key={tab}
-             onClick={() => setActiveTab(tab as any)}
-             className={`flex-1 py-1.5 text-[10px] font-bold tracking-wider rounded-lg transition-colors ${activeTab === tab ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-           >
-             {tab}
-           </button>
-         ))}
-      </div>
-
-      <div className="overflow-y-auto p-2 space-y-1">
-         {filtered.length > 0 ? filtered.map(item => (
-           <div onClick={() => {toast.info("Navigating..."); onClose();}} key={item.id} className="p-3 rounded-xl hover:bg-white/5 transition-colors group relative">
-              <div className="flex gap-3">
-                 <div className="mt-0.5">{item.icon}</div>
-                 <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                       <h4 className="text-xs font-medium text-white mb-0.5">{item.title}</h4>
-                       <span className="text-[10px] text-white/20">{item.time}</span>
-                    </div>
-                    <p className="text-xs text-white/50 leading-relaxed mb-2">{item.desc}</p>
-                    <div className="flex gap-2">
-                       <button onClick={(e) => {e.stopPropagation(); toast.info("Opening view...");}} className="px-3 py-1 bg-white/5 hover:bg-white/10 text-[10px] font-medium text-white rounded transition-colors">View</button>
-                       {item.type === 'system' && <button onClick={(e) => {e.stopPropagation(); toast.info("Updating...");}} className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-[10px] font-medium text-primary rounded transition-colors">Update</button>}
-                    </div>
-                 </div>
-              </div>
-           </div>
-         )) : (
-           <div className="py-8 text-center text-xs text-white/20">No notifications</div>
-         )}
-      </div>
-      
-      <div className="p-3 border-t border-white/5 bg-[#1A1A1E]">
-          <button onClick={() => {onClose(); toast.info("Opening Settings...");}} className="w-full py-2 flex items-center justify-center gap-2 text-xs text-white/40 hover:text-white transition-colors">
-              <Settings size={12} />
-              <span>Notification Settings</span>
-          </button>
       </div>
     </div>
   );
@@ -307,7 +204,7 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group ${
+      className={`w-full flex cursor-pointer items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group ${
         active 
           ? 'text-white bg-white/5 shadow-inner' 
           : 'text-muted-foreground/80 hover:text-white hover:bg-white/5'
@@ -350,7 +247,7 @@ function RecentProjectItem({ name, materialCount, createdAt, active, onClick }: 
   };
 
   return (
-    <div onClick={onClick} className={`group flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 ${active ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+    <div onClick={onClick} className={`group flex cursor-pointer items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 ${active ? 'bg-white/5' : 'hover:bg-white/5'}`}>
        <div className={`w-6 h-6 rounded-lg flex items-center justify-center border border-white/5 bg-primary/10 text-primary ${active ? 'ring-1 ring-primary/20' : ''}`}>
          <FileText size={12} />
        </div>

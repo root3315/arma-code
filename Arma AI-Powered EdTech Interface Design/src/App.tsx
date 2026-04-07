@@ -15,7 +15,6 @@ import { ProjectDetailView as MaterialDetailView } from './components/dashboard/
 import { ProjectDetailView as ProjectPageView } from './pages/ProjectDetailView';
 import { FlashcardsView } from './components/dashboard/FlashcardsView';
 import { LanguagesView } from './components/dashboard/LanguagesView';
-import { ExamView } from './components/dashboard/ExamView';
 import { UploadModal } from './components/shared/UploadModal';
 import { UpgradeModal } from './components/shared/UpgradeModal';
 import { Toaster } from './components/ui/sonner';
@@ -24,7 +23,7 @@ import { PricingPage } from './pages/PricingPage';
 import { projectsApi } from './services/api';
 import { OnboardingTour } from './components/dashboard/OnboardingTour';
 
-export type ViewState = 'dashboard' | 'activity' | 'library' | 'flashcards' | 'languages' | 'exam' | 'profile' | 'materials';
+export type ViewState = 'dashboard' | 'activity' | 'library' | 'flashcards' | 'languages' | 'profile' | 'materials';
 
 function LandingPageWrapper() {
   const navigate = useNavigate();
@@ -63,15 +62,6 @@ function DashboardWrapper() {
   };
 
   const openProjectDestination = async (projectId: string) => {
-    try {
-      const project = await projectsApi.get(projectId);
-      if (project.materials.length === 1) {
-        navigate(`/dashboard/materials/${project.materials[0].id}`);
-        return;
-      }
-    } catch {
-      // Fall back to the project page if project lookup fails.
-    }
     navigate(`/dashboard/projects/${projectId}`);
   };
 
@@ -85,11 +75,7 @@ function DashboardWrapper() {
     totalFiles: number;
   }) => {
     setRefreshTrigger(prev => prev + 1);
-    if (totalFiles === 1 && firstMaterialId) {
-      navigate(`/dashboard/materials/${firstMaterialId}`);
-      return;
-    }
-    await openProjectDestination(projectId);
+    navigate(`/dashboard/projects/${projectId}`);
   };
 
   const handleMaterialClick = (materialId: string) => {
@@ -113,11 +99,10 @@ function DashboardWrapper() {
         <Routes>
           <Route index element={<DashboardHome key={refreshTrigger} onMaterialClick={handleMaterialClick} onProjectClick={handleProjectClick} onUpload={handleUpload} />} />
           <Route path="activity" element={<ActivityView key={refreshTrigger} onProjectClick={handleMaterialClick} onUpload={handleUpload} />} />
-          <Route path="library" element={<LibraryView key={refreshTrigger} onProjectClick={handleMaterialClick} onUpload={handleUpload} />} />
+          <Route path="library" element={<LibraryView key={refreshTrigger} onProjectClick={handleProjectClick} onUpload={handleUpload} />} />
           <Route path="flashcards" element={<FlashcardsView />} />
           <Route path="flashcards/:deckId" element={<FlashcardsView />} />
           <Route path="languages" element={<LanguagesView />} />
-          <Route path="exam" element={<ExamView />} />
           <Route path="profile" element={<ProfileView />} />
           <Route path="materials/:id" element={<MaterialDetailView />} />
           <Route path="projects/:projectId" element={<ProjectPageView />} />

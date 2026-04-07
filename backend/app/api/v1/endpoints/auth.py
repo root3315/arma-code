@@ -18,7 +18,7 @@ from app.core.security import (
     blacklist_token,
 )
 from app.infrastructure.database.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
+from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, UserUpdate, ChangePasswordRequest
 from app.schemas.common import MessageResponse
 
 logger = logging.getLogger(__name__)
@@ -243,3 +243,118 @@ async def logout(
         )
 
     return {"message": "Successfully logged out"}
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_current_user(
+    user_data: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Update current user profile (full_name and/or email).
+
+    Args:
+        user_data: Fields to update
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        UserResponse: Updated user data
+    """
+    # Check if email is being changed and is not already taken
+    if user_data.email and user_data.email != current_user.email:
+        result = await db.execute(
+            select(User).where(User.email == user_data.email)
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        current_user.email = user_data.email
+
+    if user_data.full_name is not None:
+        current_user.full_name = user_data.full_name
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    logger.info(
+        "User profile updated",
+        extra={"user_id": str(current_user.id)}
+    )
+
+    # Rebuild response with subscription
+    from app.core.config import settings as app_settings
+    from app.schemas.subscription import SubscriptionResponse
+
+    response = UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        is_active=current_user.is_active,
+        is_superuser=current_user.is_superuser,
+        is_oauth=current_user.is_oauth,
+        oauth_provider=current_user.oauth_provider,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+    )
+
+    if app_settings.BILLING_BYPASS:
+        response.subscription = SubscriptionResponse(
+            plan_tier="pro",
+            status="active",
+            current_period_end=None,
+            cancel_at_period_end=False,
+        )
+    else:
+        from app.domain.services.subscription_service import get_or_create_subscription
+
+        sub = await get_or_create_subscription(current_user.id, db)
+        response.subscription = SubscriptionResponse(
+            plan_tier=sub.plan_tier.value if hasattr(sub.plan_tier, 'value') else sub.plan_tier,
+            status=sub.status.value if hasattr(sub.status, 'value') else sub.status,
+            current_period_end=sub.current_period_end,
+            cancel_at_period_end=sub.cancel_at_period_end,
+        )
+    return response
+
+
+@router.post("/me/change-password", response_model=MessageResponse)
+async def change_password(
+    password_data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Change the current user's password.
+
+    Args:
+        password_data: Current and new password
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        MessageResponse: Confirmation message
+
+    Raises:
+        HTTPException: If current password is incorrect
+    """
+    if not current_user.hashed_password or not verify_password(
+        password_data.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    await db.commit()
+
+    logger.info(
+        "User password changed",
+        extra={"user_id": str(current_user.id)}
+    )
+
+    return {"message": "Password changed successfully"}
