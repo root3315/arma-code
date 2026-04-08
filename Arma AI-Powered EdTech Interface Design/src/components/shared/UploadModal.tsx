@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Youtube, Link, FileText, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from '../../i18n/I18nContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useBatchUpload } from '../../hooks/useApi';
@@ -25,6 +26,7 @@ interface FileObject {
 
 export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'upload' | 'youtube' | 'link'>('upload');
   const [projectName, setProjectName] = useState('');
   const [youtubeUrls, setYoutubeUrls] = useState<string[]>([]);
@@ -47,7 +49,9 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
 
   const MAX_FILES = 10;
   const totalItems = materials.length + youtubeUrls.length + linkUrls.length;
-  const actionLabel = `Upload ${totalItems} Item${totalItems !== 1 ? 's' : ''}`;
+  const actionLabel = totalItems === 1
+    ? t('upload.upload_label_one')
+    : t('upload.upload_label_many', { count: totalItems });
 
   const isDuplicateFile = (a: File, b: File) =>
     a.name === b.name &&
@@ -81,13 +85,13 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
       if (duplicateCount > 0) {
         toast.error(
           duplicateCount === 1
-            ? 'One duplicate file was skipped'
-            : `${duplicateCount} duplicate files were skipped`,
+            ? t('upload.duplicate_one')
+            : t('upload.duplicate_many', { count: duplicateCount }),
         );
       }
 
       if (limitHit) {
-        toast.error(`Maximum ${MAX_FILES} files allowed`);
+        toast.error(t('upload.max_files', { count: MAX_FILES }));
       }
 
       return next;
@@ -103,12 +107,12 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
 
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
     if (!youtubeRegex.test(youtubeInput)) {
-      toast.error('Please enter a valid YouTube URL');
+      toast.error(t('upload.invalid_youtube'));
       return;
     }
 
     if (youtubeUrls.length >= MAX_FILES) {
-      toast.error(`Maximum ${MAX_FILES} URLs allowed`);
+      toast.error(t('upload.max_urls', { count: MAX_FILES }));
       return;
     }
 
@@ -122,12 +126,12 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
     try {
       new URL(linkInput);
     } catch {
-      toast.error('Please enter a valid URL');
+      toast.error(t('upload.invalid_url'));
       return;
     }
 
     if (linkUrls.length >= MAX_FILES) {
-      toast.error(`Maximum ${MAX_FILES} URLs allowed`);
+      toast.error(t('upload.max_urls', { count: MAX_FILES }));
       return;
     }
 
@@ -137,17 +141,17 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
 
   const handleUpload = async () => {
     if (totalItems === 0) {
-      toast.error('Please add at least one file or URL');
+      toast.error(t('upload.add_one'));
       return;
     }
 
     if (!projectName.trim()) {
-      toast.error('Please enter a project name');
+      toast.error(t('upload.enter_name'));
       return;
     }
 
     try {
-      toast.success('Starting upload...');
+      toast.success(t('upload.starting'));
 
       const result = await uploadBatch({
         project_id: projectId || undefined,
@@ -163,7 +167,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
         setUploadedMaterialId(firstMaterialId);
       }
 
-      toast.success(`Uploaded ${result.total_files} materials! Processing started.`);
+      toast.success(t('upload.uploaded', { count: result.total_files }));
       window.dispatchEvent(new CustomEvent('project-created', { detail: { projectId: result.project_id } }));
 
       if (onSuccess) {
@@ -180,7 +184,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
       // Don't close modal yet - let processing modal show
       // onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to upload materials');
+      toast.error(error.message || t('upload.failed'));
     }
   };
 
@@ -196,9 +200,9 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
         >
           <div className="flex items-center justify-between gap-4 border-b border-white/5 p-4 md:p-6">
             <div>
-              <h2 className="text-sm font-medium text-white">Add materials to project</h2>
+              <h2 className="text-sm font-medium text-white">{t('upload.add_materials')}</h2>
               <p className="mt-1 text-xs text-white/40">
-                {totalItems}/{MAX_FILES} items selected
+                {totalItems}/{MAX_FILES} {t('upload.items_selected')}
               </p>
             </div>
             <button onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/50 transition-colors hover:text-white">
@@ -215,7 +219,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                     type="text"
                     value={projectName}
                     onChange={(event) => setProjectName(event.target.value)}
-                    placeholder="Project name"
+                    placeholder={t('upload.project_name')}
                     className="flex-1 bg-transparent text-sm text-white placeholder:text-white/40 outline-none"
                   />
                 </div>
@@ -226,9 +230,9 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
           <div className="max-h-[80vh] overflow-y-auto p-4 md:p-6">
             <div className="mb-6 flex gap-2 rounded-2xl bg-white/5 p-1">
               {[
-                { id: 'upload' as const, label: 'Files', icon: <Upload size={14} /> },
-                { id: 'youtube' as const, label: 'YouTube', icon: <Youtube size={14} /> },
-                { id: 'link' as const, label: 'Link', icon: <Link size={14} /> },
+                { id: 'upload' as const, label: t('upload.tab_files'), icon: <Upload size={14} /> },
+                { id: 'youtube' as const, label: t('upload.tab_youtube'), icon: <Youtube size={14} /> },
+                { id: 'link' as const, label: t('upload.tab_link'), icon: <Link size={14} /> },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -246,8 +250,8 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
             {uploading ? (
               <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
                 <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
-                <p className="font-medium text-white/80">Processing upload...</p>
-                <p className="text-sm text-white/40">Uploading and queueing for AI processing</p>
+                <p className="font-medium text-white/80">{t('upload.processing')}</p>
+                <p className="text-sm text-white/40">{t('upload.queueing')}</p>
               </div>
             ) : (
               <>
@@ -294,7 +298,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                         disabled={!youtubeInput}
                         className="h-11 rounded-2xl bg-primary/20 px-4 text-sm font-medium text-primary transition-all hover:bg-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Add
+                        {t('upload.add')}
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -326,7 +330,7 @@ export function UploadModal({ onClose, projectId, onSuccess }: UploadModalProps)
                         disabled={!linkInput}
                         className="h-11 rounded-2xl bg-primary/20 px-4 text-sm font-medium text-primary transition-all hover:bg-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Add
+                        {t('upload.add')}
                       </button>
                     </div>
                     <div className="space-y-2">

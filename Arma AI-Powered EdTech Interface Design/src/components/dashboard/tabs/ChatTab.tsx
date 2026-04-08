@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ArrowLeft, Sparkles, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { useTranslation } from '../../../i18n/I18nContext';
 import { toast } from 'sonner';
 import type { Material, TutorMessage } from '../../../types/api';
 import { materialsApi } from '../../../services/api';
@@ -19,6 +20,7 @@ export interface ChatTabProps {
 const DEBOUNCE_MS = 300;
 
 export function ChatTab({ material, projectId, messages, sendMessage, sending, loading, isTyping }: ChatTabProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
@@ -41,7 +43,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
     try {
       await sendMessage(messageText);
     } catch (err) {
-      toast.error('Failed to send message');
+      toast.error(t('chat.failed_send'));
     }
   };
 
@@ -67,17 +69,17 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
         setAudioElement(null);
       });
       audio.addEventListener('error', () => {
-        toast.error('Failed to play audio');
+        toast.error(t('chat.failed_audio'));
         setSpeakingId(null);
         setAudioElement(null);
       });
       
       setAudioElement(audio);
       await audio.play();
-      toast.success('Playing audio...');
+      toast.success(t('chat.playing_audio'));
       
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to generate speech');
+      toast.error(err.response?.data?.detail || t('chat.failed_speech'));
       setSpeakingId(null);
     }
   };
@@ -88,7 +90,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
       audioElement.remove();
       setAudioElement(null);
       setSpeakingId(null);
-      toast.info('Stopped');
+      toast.info(t('chat.stopped'));
     }
   };
 
@@ -123,7 +125,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
-          <p className="text-white/40">Loading chat...</p>
+          <p className="text-white/40">{t('chat.loading')}</p>
         </div>
       </div>
     );
@@ -154,8 +156,8 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                  <Sparkles className="w-8 h-8 text-primary" />
                </div>
-               <h3 className="text-lg font-medium text-white mb-2">Start a conversation</h3>
-               <p className="text-white/40">Ask questions about <strong>{material.title}</strong></p>
+               <h3 className="text-lg font-medium text-white mb-2">{t('chat.start_conversation')}</h3>
+               <p className="text-white/40">{t('chat.ask_about', { title: material.title })}</p>
              </div>
            </div>
          ) : (
@@ -185,7 +187,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
                               ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                               : 'bg-white/5 text-white/40 hover:text-primary hover:bg-primary/10'
                           }`}
-                          title={speakingId === msg.id ? 'Stop' : 'Listen'}
+                          title={speakingId === msg.id ? t('chat.stop') : t('chat.listen')}
                         >
                           {speakingId === msg.id ? <VolumeX size={14} /> : <Volume2 size={14} />}
                         </button>
@@ -220,7 +222,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
         <button
           onClick={scrollToBottom}
           className="absolute bottom-24 right-4 md:bottom-28 md:right-8 p-2 rounded-full bg-primary text-black shadow-lg hover:bg-primary/90 transition-all opacity-50 hover:opacity-100"
-          title="Scroll to bottom"
+          title={t('chat.scroll_bottom')}
         >
           <ArrowLeft size={20} className="rotate-90" />
         </button>
@@ -229,7 +231,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
       {/* Input Area */}
       <div className="p-3 md:p-6 shrink-0 max-w-3xl mx-auto w-full">
          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-            {['Summarize section 2', 'Create flashcards', 'Explain key terms', 'Give me a quiz'].map(suggestion => (
+            {[t('chat.suggest_summarize'), t('chat.suggest_flashcards'), t('chat.suggest_explain'), t('chat.suggest_quiz')].map(suggestion => (
               <button
                 key={suggestion}
                 onClick={() => setInput(suggestion)}
@@ -245,7 +247,7 @@ export function ChatTab({ material, projectId, messages, sendMessage, sending, l
              value={input}
              onChange={(e) => setInput(e.target.value)}
              onKeyDown={(e) => e.key === 'Enter' && !sending && handleSend()}
-             placeholder="Ask anything about this material..."
+             placeholder={t('chat.placeholder')}
              disabled={sending}
              className="w-full h-12 bg-[#0A0A0C] border border-white/10 rounded-xl px-4 pr-12 text-sm text-white placeholder:text-white/30 focus:border-primary/30 focus:outline-none transition-colors shadow-lg disabled:opacity-50"
            />

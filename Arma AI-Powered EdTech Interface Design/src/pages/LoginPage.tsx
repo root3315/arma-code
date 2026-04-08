@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { motion } from 'motion/react';
+import { useTranslation } from '../i18n/I18nContext';
 import { toast } from 'sonner';
 import { AICore } from '../components/shared/AICore';
 import { Brain, ChevronRight } from 'lucide-react';
@@ -31,6 +32,7 @@ const itemVariants = {
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -46,8 +48,8 @@ export const LoginPage: React.FC = () => {
       toast.success('Добро пожаловать!');
       navigate('/dashboard');
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Ошибка входа. Проверьте email и пароль.';
-      toast.error(typeof message === 'string' ? message : 'Ошибка входа. Проверьте email и пароль.');
+      const message = error.response?.data?.detail || t('login.error');
+      toast.error(typeof message === 'string' ? message : t('login.error'));
     } finally {
       setIsLoading(false);
     }
@@ -76,9 +78,9 @@ export const LoginPage: React.FC = () => {
         <Card className="w-full py-6 glass-panel border-white/10">
           <motion.div variants={itemVariants}>
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold text-white">Вход в Arma AI</CardTitle>
+              <CardTitle className="text-2xl font-bold text-white">{t('login.title')}</CardTitle>
               <CardDescription className="text-white/60">
-                Введите свои данные для доступа к платформе
+                {t('login.description')}
               </CardDescription>
             </CardHeader>
           </motion.div>
@@ -86,7 +88,7 @@ export const LoginPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="email" className="text-white/80">
-                  Email
+                  {t('login.email')}
                 </Label>
                 <Input
                   id="email"
@@ -102,7 +104,7 @@ export const LoginPage: React.FC = () => {
 
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="password" className="text-white/80">
-                  Пароль
+                  {t('login.password')}
                 </Label>
                 <Input
                   id="password"
@@ -122,14 +124,14 @@ export const LoginPage: React.FC = () => {
                   className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Вход...' : 'Войти'}
+                  {isLoading ? t('login.loading') : t('login.submit')}
                 </Button>
               </motion.div>
 
               <motion.p variants={itemVariants} className="text-center text-sm text-white/60 mt-4">
-                Нет аккаунта?{' '}
+                {t('login.no_account')}{' '}
                 <Link to="/register" className="text-[#FF8A3D] hover:underline">
-                  Зарегистрироваться
+                  {t('login.register_link')}
                 </Link>
               </motion.p>
             </form>

@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { motion } from 'motion/react';
+import { useTranslation } from '../i18n/I18nContext';
 import { toast } from 'sonner';
 import { AICore } from '../components/shared/AICore';
 import { Header } from '@/components/ui/header';
@@ -30,6 +31,7 @@ const itemVariants = {
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -42,12 +44,12 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Пароли не совпадают');
+      toast.error(t('register.passwords_mismatch'));
       return;
     }
 
     if (formData.password.length < 8) {
-      toast.error('Пароль должен быть минимум 8 символов');
+      toast.error(t('register.password_min_length'));
       return;
     }
 
@@ -59,7 +61,7 @@ export const RegisterPage: React.FC = () => {
         password: formData.password,
         full_name: formData.full_name,
       });
-      toast.success('Регистрация успешна! Добро пожаловать!');
+      toast.success(t('register.success'));
       navigate('/dashboard');
     } catch (error: any) {
       const detail = error.response?.data?.detail;
@@ -67,7 +69,7 @@ export const RegisterPage: React.FC = () => {
         ? detail.map((e: any) => e.msg).join(', ')
         : typeof detail === 'string'
           ? detail
-          : 'Ошибка регистрации. Попробуйте другой email.';
+          : t('register.error');
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -99,9 +101,9 @@ export const RegisterPage: React.FC = () => {
         <Card className="w-full py-6 glass-panel border-white/10">
           <motion.div variants={itemVariants}>
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold text-white">Регистрация в Arma AI</CardTitle>
+              <CardTitle className="text-2xl font-bold text-white">{t('register.title')}</CardTitle>
               <CardDescription className="text-white/60">
-                Создайте аккаунт для начала обучения
+                {t('register.description')}
               </CardDescription>
             </CardHeader>
           </motion.div>
@@ -109,12 +111,12 @@ export const RegisterPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="full_name" className="text-white/80">
-                  Полное имя
+                  {t('register.full_name')}
                 </Label>
                 <Input
                   id="full_name"
                   type="text"
-                  placeholder="Иван Иванов"
+                  placeholder={t('register.full_name_placeholder')}
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   required
@@ -125,7 +127,7 @@ export const RegisterPage: React.FC = () => {
 
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="email" className="text-white/80">
-                  Email
+                  {t('register.email')}
                 </Label>
                 <Input
                   id="email"
@@ -141,7 +143,7 @@ export const RegisterPage: React.FC = () => {
 
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="password" className="text-white/80">
-                  Пароль
+                  {t('register.password')}
                 </Label>
                 <Input
                   id="password"
@@ -157,7 +159,7 @@ export const RegisterPage: React.FC = () => {
 
               <motion.div variants={itemVariants} className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-white/80">
-                  Подтвердите пароль
+                  {t('register.confirm_password')}
                 </Label>
                 <Input
                   id="confirmPassword"
@@ -177,14 +179,14 @@ export const RegisterPage: React.FC = () => {
                   className="w-full bg-[#FF8A3D] hover:bg-[#FF8A3D]/90 text-white font-medium cursor-pointer"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+                  {isLoading ? t('register.loading') : t('register.submit')}
                 </Button>
               </motion.div>
 
               <motion.p variants={itemVariants} className="text-center text-sm text-white/60 mt-4">
-                Уже есть аккаунт?{' '}
+                {t('register.has_account')}{' '}
                 <Link to="/login" className="text-[#FF8A3D] hover:underline">
-                  Войти
+                  {t('register.login_link')}
                 </Link>
               </motion.p>
             </form>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Play, CheckCircle2, Loader2, ChevronLeft, ChevronRight, RotateCw, X } from 'lucide-react';
+import { useTranslation } from '../../../i18n/I18nContext';
 import { toast } from 'sonner';
 import type { Material, Flashcard } from '../../../types/api';
 
@@ -17,6 +18,7 @@ export interface FlashcardsTabProps {
 const PREVIEW_COUNT = 3;
 
 export function FlashcardsTab({ material, flashcards, loading, viewMode = 'single', onComplete }: FlashcardsTabProps) {
+    const { t } = useTranslation();
     const [reviewStarted, setReviewStarted] = useState(false);
     const [currentCard, setCurrentCard] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
@@ -45,7 +47,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
             <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
-                    <p className="text-white/40">Loading flashcards...</p>
+                    <p className="text-white/40">{t('flashcards.loading')}</p>
                 </div>
             </div>
         );
@@ -57,15 +59,15 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                 <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center text-white/20 mb-6">
                     <Brain size={40} />
                 </div>
-                <h2 className="text-2xl font-medium text-white mb-2">No Flashcards Yet</h2>
+                <h2 className="text-2xl font-medium text-white mb-2">{t('flashcards.no_flashcards')}</h2>
                 <p className="text-white/40 max-w-md mb-8">
-                    Flashcards have not been generated for {viewMode === 'all' ? 'these materials' : 'this material'} yet.
+                    {t('flashcards.not_generated', { context: viewMode === 'all' ? 'all' : 'single' })}
                 </p>
                 <button
-                    onClick={() => toast.info('Flashcard generation coming soon')}
+                    onClick={() => toast.info(t('flashcards.coming_soon'))}
                     className="px-6 py-3 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all"
                 >
-                    Generate Flashcards
+                    {t('flashcards.generate')}
                 </button>
             </div>
         );
@@ -91,20 +93,20 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                         </div>
 
                         <h2 className="text-3xl font-bold text-white mb-2">
-                            {percentage >= 80 ? '🎉 Excellent!' : percentage >= 50 ? '👍 Good Progress!' : '📚 Keep Learning!'}
+                            {percentage >= 80 ? t('flashcards.excellent') : percentage >= 50 ? t('flashcards.good_progress') : t('flashcards.keep_learning')}
                         </h2>
                         <p className="text-white/60 mb-8">
-                            You've reviewed all {flashcards.length} cards
+                            {t('flashcards.reviewed_all', { count: flashcards.length })}
                         </p>
 
                         <div className="grid grid-cols-2 gap-4 mb-8">
                             <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
                                 <div className="text-3xl font-bold text-emerald-400 mb-1">{knownCards.length}</div>
-                                <div className="text-sm text-white/60">Known</div>
+                                <div className="text-sm text-white/60">{t('flashcards.known')}</div>
                             </div>
                             <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20">
                                 <div className="text-3xl font-bold text-amber-400 mb-1">{learningCards.length}</div>
-                                <div className="text-sm text-white/60">Learning</div>
+                                <div className="text-sm text-white/60">{t('flashcards.learning')}</div>
                             </div>
                         </div>
 
@@ -120,7 +122,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                 className="flex-1 px-6 py-4 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
                             >
                                 <RotateCw size={18} />
-                                Review Again
+                                {t('flashcards.review_again')}
                             </button>
                         </div>
                     </motion.div>
@@ -140,7 +142,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                 <div className="w-full max-w-2xl mb-8">
                     <div className="flex justify-between text-sm text-white/60 mb-3">
                         <span>Card {currentCard + 1} of {flashcards.length}</span>
-                        <span>{knownCards.length} known • {learningCards.length} learning</span>
+                        <span>{knownCards.length} {t('flashcards.known')} • {learningCards.length} {t('flashcards.learning')}</span>
                     </div>
                     <div className="h-3 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
@@ -177,10 +179,10 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                 className="absolute inset-0 p-10 rounded-3xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 flex flex-col items-center justify-center text-center backface-hidden"
                                 style={{ backfaceVisibility: 'hidden' }}
                             >
-                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-6">Question</div>
+                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-6">{t('flashcards.question')}</div>
                                 <p className="text-2xl text-white leading-relaxed max-w-lg">{card.question}</p>
                                 <div className="absolute bottom-8 text-sm text-white/40 flex items-center gap-2">
-                                    <span>Click to flip</span>
+                                    <span>{t('flashcards.click_to_flip')}</span>
                                     <ChevronRight size={16} className="rotate-90" />
                                 </div>
                             </div>
@@ -193,7 +195,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                                     transform: 'rotateY(180deg)'
                                 }}
                             >
-                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-6">Answer</div>
+                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-6">{t('flashcards.answer')}</div>
                                 <p className="text-2xl text-white leading-relaxed max-w-lg">{card.answer}</p>
                             </div>
                         </motion.div>
@@ -216,7 +218,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                         className="flex-1 px-6 py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 font-bold hover:bg-red-500/20 hover:border-red-500/40 transition-all flex items-center justify-center gap-2"
                     >
                         <X size={18} />
-                        <span>Still Learning</span>
+                        <span>{t('flashcards.still_learning')}</span>
                     </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.03, y: -2 }}
@@ -231,7 +233,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                         className="flex-1 px-6 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all flex items-center justify-center gap-2"
                     >
                         <CheckCircle2 size={18} />
-                        <span>Know It</span>
+                        <span>{t('flashcards.know_it')}</span>
                     </motion.button>
                 </div>
             </div>
@@ -249,46 +251,46 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                         <Brain size={32} className="text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-medium text-white mb-1">Flashcard Deck</h2>
-                        <p className="text-white/40 text-sm">{material?.title || (viewMode === 'all' ? 'All Materials' : 'Material')}</p>
+                        <h2 className="text-2xl font-medium text-white mb-1">{t('flashcards.deck_title')}</h2>
+                        <p className="text-white/40 text-sm">{material?.title || (viewMode === 'all' ? t('project.view_mode.all') : t('flashcards.material'))}</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                         <div className="text-xl font-bold text-white mb-1">{flashcards.length}</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Cards</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('flashcards.cards_label')}</div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                        <div className="text-xl font-bold text-emerald-400 mb-1">Ready</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Status</div>
+                        <div className="text-xl font-bold text-emerald-400 mb-1">{t('flashcards.ready')}</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('flashcards.status')}</div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                        <div className="text-xl font-bold text-white mb-1">{material?.type?.toUpperCase() || 'N/A'}</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Source</div>
+                        <div className="text-xl font-bold text-white mb-1">{material?.type?.toUpperCase() || t('flashcards.na')}</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('flashcards.source')}</div>
                     </div>
                 </div>
             </div>
 
             {/* Preview Cards */}
             <div className="mb-8">
-                <h3 className="text-sm font-medium text-white/60 mb-6 px-2">Card Preview</h3>
+                <h3 className="text-sm font-medium text-white/60 mb-6 px-2">{t('flashcards.card_preview')}</h3>
                 <div className="space-y-3">
                     {flashcards.slice(0, PREVIEW_COUNT).map((card, idx) => (
                         <div key={idx} className="p-6 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.03] transition-colors">
                             <div className="mb-3">
-                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-2">Question</div>
+                                <div className="text-xs text-primary/60 uppercase tracking-wider mb-2">{t('flashcards.question')}</div>
                                 <div className="text-white/90 text-base leading-relaxed">{card.question}</div>
                             </div>
                             <div className="pt-4 mt-4 border-t border-white/5">
-                                <div className="text-xs text-emerald-500/60 uppercase tracking-wider mb-2">Answer</div>
+                                <div className="text-xs text-emerald-500/60 uppercase tracking-wider mb-2">{t('flashcards.answer')}</div>
                                 <div className="text-white/70 text-base leading-relaxed">{card.answer}</div>
                             </div>
                         </div>
                     ))}
                 </div>
                 {flashcards.length > PREVIEW_COUNT && (
-                    <p className="text-xs text-white/30 text-center mt-6">+ {flashcards.length - PREVIEW_COUNT} more cards</p>
+                    <p className="text-xs text-white/30 text-center mt-6">+ {flashcards.length - PREVIEW_COUNT} {t('flashcards.more_cards')}</p>
                 )}
             </div>
 
@@ -298,7 +300,7 @@ export function FlashcardsTab({ material, flashcards, loading, viewMode = 'singl
                 className="w-full px-8 py-4 bg-primary text-black rounded-xl font-bold text-lg hover:bg-primary/90 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(255,138,61,0.2)] flex items-center justify-center gap-3"
             >
                 <Play size={20} fill="currentColor" />
-                Start Review
+                {t('flashcards.start_review')}
             </button>
         </div>
     );

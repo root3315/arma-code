@@ -15,10 +15,12 @@ import { ProjectDetailView as MaterialDetailView } from './components/dashboard/
 import { ProjectDetailView as ProjectPageView } from './pages/ProjectDetailView';
 import { FlashcardsView } from './components/dashboard/FlashcardsView';
 import { LanguagesView } from './components/dashboard/LanguagesView';
+import { SearchResultsModal } from './components/shared/SearchResultsModal';
 import { UploadModal } from './components/shared/UploadModal';
 import { UpgradeModal } from './components/shared/UpgradeModal';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { I18nProvider } from './i18n/I18nContext';
 import { PricingPage } from './pages/PricingPage';
 import { projectsApi } from './services/api';
 import { OnboardingTour } from './components/dashboard/OnboardingTour';
@@ -35,6 +37,13 @@ function DashboardWrapper() {
   const location = useLocation();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isRefiningSearch, setIsRefiningSearch] = useState(false);
+  const [searchPhase, setSearchPhase] = useState<any>('fast');
+  const [aiAnswer, setAiAnswer] = useState<string | undefined>(undefined);
 
   // Определяем текущий view из URL
   const getCurrentView = (): ViewState => {
@@ -55,6 +64,70 @@ function DashboardWrapper() {
 
   const handleUpload = () => {
     setUploadModalOpen(true);
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    setSearchModalOpen(true);
+    setIsSearching(true);
+    setIsRefiningSearch(false);
+    setSearchPhase('fast');
+    setSearchResults([]);
+    setAiAnswer(undefined);
+
+    try {
+      const fastResponse = await searchApi.search({
+        query,
+        types: ['pdf', 'youtube', 'article'],
+        limit: 10,
+        phase: 'fast',
+      });
+
+      setSearchResults(fastResponse.results || []);
+      setAiAnswer(fastResponse.ai_answer);
+      setSearchPhase('fast');
+
+      if (fastResponse.is_partial) {
+        setIsRefiningSearch(true);
+        try {
+          const fullResponse = await searchApi.search({
+            query,
+            types: ['pdf', 'youtube', 'article'],
+            limit: 10,
+            phase: 'full',
+          });
+          setSearchResults((prev) => {
+            const merged = new Map<string, any>();
+            prev.forEach((r) => merged.set(r.url, r));
+            (fullResponse.results || []).forEach((r) => merged.set(r.url, r));
+            return Array.from(merged.values());
+          });
+          setAiAnswer(fullResponse.ai_answer ?? fastResponse.ai_answer);
+          setSearchPhase('full');
+        } catch { /* ignore */ } finally {
+          setIsRefiningSearch(false);
+        }
+      }
+    } catch {
+      toast.error('Failed to search. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectResult = async (result: any) => {
+    try {
+      const materialType = result.type === 'youtube' ? 'youtube' : result.type === 'article' ? 'article' : 'pdf';
+      await materialsApi.create({
+        title: result.title,
+        material_type: materialType,
+        source: result.url,
+      });
+      setRefreshTrigger((prev) => prev + 1);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleCloseUploadModal = () => {
@@ -97,7 +170,7 @@ function DashboardWrapper() {
         onProjectSelect={handleProjectClick}
       >
         <Routes>
-          <Route index element={<DashboardHome key={refreshTrigger} onMaterialClick={handleMaterialClick} onProjectClick={handleProjectClick} onUpload={handleUpload} />} />
+          <Route index element={<DashboardHome key={refreshTrigger} onMaterialClick={handleMaterialClick} onProjectClick={handleProjectClick} onUpload={handleUpload} onSearch={handleSearch} />} />
           <Route path="activity" element={<ActivityView key={refreshTrigger} onProjectClick={handleMaterialClick} onUpload={handleUpload} />} />
           <Route path="library" element={<LibraryView key={refreshTrigger} onProjectClick={handleProjectClick} onUpload={handleUpload} />} />
           <Route path="flashcards" element={<FlashcardsView />} />
@@ -119,6 +192,20 @@ function DashboardWrapper() {
         )}
       </AnimatePresence>
 
+      {/* Search Results Modal */}
+      {searchModalOpen && (
+        <SearchResultsModal
+          query={searchQuery}
+          results={searchResults}
+          loading={isSearching}
+          refining={isRefiningSearch}
+          phase={searchPhase}
+          aiAnswer={aiAnswer}
+          onClose={() => setSearchModalOpen(false)}
+          onSelectResult={handleSelectResult}
+        />
+      )}
+
       {/* Onboarding Tour - shows for first-time users */}
       <OnboardingTour />
     </>
@@ -128,7 +215,8 @@ function DashboardWrapper() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
         <ErrorBoundary>
           <div className="min-h-screen bg-background font-sans text-foreground selection:bg-primary/20 selection:text-primary dark">
             <Toaster />
@@ -156,6 +244,7 @@ export default function App() {
           </div>
         </ErrorBoundary>
       </AuthProvider>
+    </I18nProvider>
     </BrowserRouter>
   );
 }

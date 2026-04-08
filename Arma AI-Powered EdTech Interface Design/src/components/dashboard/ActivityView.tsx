@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, MoreHorizontal, FileText, Youtube, MessageSquare, Brain, CheckCircle2, Play, ChevronRight, Upload, Plus, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { useMaterials } from '../../hooks/useApi';
+import { useTranslation } from '../../i18n/I18nContext';
 import { toast } from 'sonner';
 import type { Material } from '../../types/api';
 
@@ -11,6 +12,7 @@ interface ActivityViewProps {
 }
 
 export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
+  const { t } = useTranslation();
   const { materials, loading } = useMaterials();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'pdf' | 'youtube'>('ALL');
@@ -56,8 +58,8 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
       <div className="flex-shrink-0 px-8 py-6 border-b border-white/5 bg-[#121215]/50 backdrop-blur-md z-20">
          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-2xl font-medium text-white tracking-tight mb-1">Activity</h1>
-              <p className="text-sm text-white/40">Resume your learning and monitor processing</p>
+              <h1 className="text-2xl font-medium text-white tracking-tight mb-1">{t('activity.title')}</h1>
+              <p className="text-sm text-white/40">{t('activity.subtitle')}</p>
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
@@ -67,14 +69,14 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
                     type="text" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search recent projects..." 
+                    placeholder={t('activity.search_placeholder')} 
                     className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 focus:border-primary/30 focus:outline-none transition-colors"
                   />
                </div>
                
                <div className="flex items-center gap-2 border-l border-white/10 pl-3 ml-1">
-                  <FilterChip label="PDF" active={filterType === 'pdf'} onClick={() => setFilterType(filterType === 'pdf' ? 'ALL' : 'pdf')} />
-                  <FilterChip label="YouTube" active={filterType === 'youtube'} onClick={() => setFilterType(filterType === 'youtube' ? 'ALL' : 'youtube')} />
+                  <FilterChip label={t('activity.filter_pdf')} active={filterType === 'pdf'} onClick={() => setFilterType(filterType === 'pdf' ? 'ALL' : 'pdf')} />
+                  <FilterChip label={t('activity.filter_youtube')} active={filterType === 'youtube'} onClick={() => setFilterType(filterType === 'youtube' ? 'ALL' : 'youtube')} />
                </div>
             </div>
          </div>
@@ -88,7 +90,7 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
            {/* Today Group */}
            {todayMaterials.length > 0 && (
              <div className="space-y-3">
-               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">Today</div>
+               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">{t('activity.today')}</div>
                {todayMaterials.map(material => (
                  <MaterialRowCard key={material.id} material={material} onClick={() => onProjectClick?.(material.id)} />
                ))}
@@ -98,7 +100,7 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
            {/* Yesterday Group */}
            {yesterdayMaterials.length > 0 && (
              <div className="space-y-3">
-               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">Yesterday</div>
+               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">{t('activity.yesterday')}</div>
                {yesterdayMaterials.map(material => (
                  <MaterialRowCard key={material.id} material={material} onClick={() => onProjectClick?.(material.id)} />
                ))}
@@ -108,7 +110,7 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
            {/* Older Group */}
            {olderMaterials.length > 0 && (
              <div className="space-y-3">
-               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">Older</div>
+               <div className="text-xs font-medium text-white/40 uppercase tracking-wider px-2">{t('activity.older')}</div>
                {olderMaterials.map(material => (
                  <MaterialRowCard key={material.id} material={material} onClick={() => onProjectClick?.(material.id)} />
                ))}
@@ -120,11 +122,11 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                     <Search className="w-8 h-8 text-white/20" />
                  </div>
-                 <h3 className="text-lg font-medium text-white/60 mb-2">No projects found</h3>
-                 <p className="text-sm text-white/30 mb-4">Upload materials to get started</p>
+                 <h3 className="text-lg font-medium text-white/60 mb-2">{t('activity.no_results')}</h3>
+                 <p className="text-sm text-white/30 mb-4">{t('activity.upload_to_start')}</p>
                  <div className="flex gap-3">
-                   <button onClick={() => {setFilterType('ALL'); setSearchQuery('');}} className="text-sm text-primary hover:underline">Clear filters</button>
-                   <button onClick={onUpload} className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-medium">Upload Material</button>
+                   <button onClick={() => {setFilterType('ALL'); setSearchQuery('');}} className="text-sm text-primary hover:underline">{t('activity.clear_filters')}</button>
+                   <button onClick={onUpload} className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-medium">{t('activity.upload_material')}</button>
                  </div>
               </div>
            )}
@@ -135,14 +137,14 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
 
            {/* Block 1: Processing Queue */}
            <div>
-             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">Processing Queue</h3>
+             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">{t('activity.processing_queue')}</h3>
              {processingMaterials.length > 0 ? (
                <div className="space-y-3">
                  {processingMaterials.map(item => (
                    <div key={item.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-colors">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-medium text-white/80 truncate max-w-[180px]" title={item.title}>{item.title}</span>
-                        <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/10">Working</span>
+                        <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/10">{t('activity.working')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
@@ -154,13 +156,13 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
                  ))}
                </div>
              ) : (
-               <div className="text-xs text-white/20 italic p-2 border border-dashed border-white/5 rounded-lg text-center">Nothing processing</div>
+               <div className="text-xs text-white/20 italic p-2 border border-dashed border-white/5 rounded-lg text-center">{t('activity.nothing_processing')}</div>
              )}
            </div>
 
            {/* Block 2: Continue */}
            <div>
-             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">Continue Learning</h3>
+             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">{t('activity.continue_learning')}</h3>
              {completedMaterials.length > 0 ? (
                <div className="space-y-2">
                   {completedMaterials.map(item => (
@@ -172,7 +174,7 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
                           <div className="text-xs font-medium text-white/80 truncate group-hover:text-white transition-colors">{item.title}</div>
                           <div className="text-[10px] text-white/30 truncate flex items-center gap-1">
                             <span className="w-1 h-1 rounded-full bg-emerald-500/50" />
-                            <span>Ready</span>
+                            <span>{t('activity.ready')}</span>
                           </div>
                        </div>
                        <ChevronRight size={14} className="text-white/20 group-hover:text-white/60 transition-colors" />
@@ -180,30 +182,30 @@ export function ActivityView({ onProjectClick, onUpload }: ActivityViewProps) {
                   ))}
                </div>
              ) : (
-               <div className="text-xs text-white/20 italic p-2 border border-dashed border-white/5 rounded-lg text-center">No completed materials yet</div>
+               <div className="text-xs text-white/20 italic p-2 border border-dashed border-white/5 rounded-lg text-center">{t('activity.no_completed')}</div>
              )}
            </div>
 
            {/* Block 3: Quick Actions */}
            <div>
-             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">Quick Actions</h3>
+             <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">{t('activity.quick_actions')}</h3>
              <div className="grid grid-cols-2 gap-2">
                 <button onClick={onUpload} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-primary/20 hover:text-primary transition-all group">
                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                      <Upload size={16} />
                    </div>
-                   <span className="text-xs font-medium text-white/60 group-hover:text-primary">Upload PDF</span>
+                   <span className="text-xs font-medium text-white/60 group-hover:text-primary">{t('activity.upload_pdf')}</span>
                 </button>
                 <button onClick={onUpload} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-red-500/20 hover:text-red-400 transition-all group">
                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-red-500/10 transition-colors">
                      <Youtube size={16} />
                    </div>
-                   <span className="text-xs font-medium text-white/60 group-hover:text-red-400">YouTube Link</span>
+                   <span className="text-xs font-medium text-white/60 group-hover:text-red-400">{t('activity.youtube_link')}</span>
                 </button>
              </div>
              <button onClick={onUpload} className="w-full mt-2 flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 text-primary hover:bg-primary/10 hover:border-primary/30 transition-all text-xs font-bold uppercase tracking-wide">
                <Plus size={14} />
-               <span>New Project</span>
+               <span>{t('activity.new_project')}</span>
              </button>
            </div>
 
@@ -226,6 +228,7 @@ function FilterChip({ label, active, onClick }: { label: string, active: boolean
 }
 
 function MaterialRowCard({ material, onClick }: { material: Material, onClick: () => void }) {
+  const { t } = useTranslation();
   const getStatusLabel = () => {
     switch (material.processing_status) {
       case 'completed': return 'READY';
@@ -292,15 +295,15 @@ function MaterialRowCard({ material, onClick }: { material: Material, onClick: (
                     ? 'bg-white text-black'
                     : 'bg-white/5 text-white border border-white/10'
                 }`}>
-                  {material.processing_status === 'completed' ? 'Continue' : material.processing_status === 'processing' ? 'View' : 'Retry'}
+                  {material.processing_status === 'completed' ? t('activity.continue') : material.processing_status === 'processing' ? t('activity.view') : t('activity.retry')}
                 </button>
              </div>
 
              {/* Hover State: Quick Actions */}
              <div className="flex items-center justify-end gap-1 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#0C0C0F] md:bg-transparent">
-                <ActionButton icon={<Play size={14} />} tooltip="Continue" onClick={(e) => { e.stopPropagation(); onClick(); }} />
-                <ActionButton icon={<Brain size={14} />} tooltip="Flashcards" onClick={(e) => { e.stopPropagation(); toast.info("Opening Flashcards..."); }} />
-                <ActionButton icon={<CheckCircle2 size={14} />} tooltip="Quiz" onClick={(e) => { e.stopPropagation(); toast.info("Starting Quiz..."); }} />
+                <ActionButton icon={<Play size={14} />} tooltip={t('activity.continue')} onClick={(e) => { e.stopPropagation(); onClick(); }} />
+                <ActionButton icon={<Brain size={14} />} tooltip={t('activity.tabs_flashcards')} onClick={(e) => { e.stopPropagation(); toast.info(t('activity.opening_flashcards')); }} />
+                <ActionButton icon={<CheckCircle2 size={14} />} tooltip={t('activity.tabs_quiz')} onClick={(e) => { e.stopPropagation(); toast.info(t('activity.starting_quiz')); }} />
                 <div className="w-px h-4 bg-white/10 mx-1" />
                 <ActionButton icon={<MoreHorizontal size={14} />} onClick={(e) => { e.stopPropagation(); toast.info("More options"); }} />
              </div>

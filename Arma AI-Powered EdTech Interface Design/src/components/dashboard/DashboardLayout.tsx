@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Settings, LogOut, Plus, Brain, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { LayoutDashboard, FileText, Settings, LogOut, Plus, Brain, User, Globe, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import type { ViewState } from '../../App';
 import { useProjects } from '../../hooks/useApi';
+import { useTranslation } from '../../i18n/I18nContext';
+import type { Language } from '../../i18n';
+import { languageNames } from '../../i18n';
 import { toast } from 'sonner';
 
 interface DashboardLayoutProps {
@@ -18,6 +22,9 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { projects, refetch } = useProjects();
+  const { t, language, setLanguage } = useTranslation();
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = React.useRef<HTMLDivElement>(null);
   const recentProjects = projects.slice(0, 5);
 
   // Listen for project deletion/creation events
@@ -33,6 +40,15 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
       window.removeEventListener('project-created', handleProjectChanged);
     };
   }, [refetch]);
+
+  // Close language dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -66,28 +82,28 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
           <div className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-black transition-colors">
             <Plus className="w-3.5 h-3.5" />
           </div>
-          <span>New Project</span>
+          <span>{t('dashboard.new_project')}</span>
         </button>
 
         <nav className="space-y-1 flex-1 overflow-y-auto px-2 scrollbar-hide">
-          <SidebarItem 
-            icon={<LayoutDashboard size={18} />} 
-            label="Home" 
-            active={currentView === 'dashboard'} 
+          <SidebarItem
+            icon={<LayoutDashboard size={18} />}
+            label={t('dashboard.home')}
+            active={currentView === 'dashboard'}
             onClick={() => onNavigate('dashboard')}
           />
           <SidebarItem
             icon={<FileText size={18} />}
-            label="Projects"
+            label={t('dashboard.projects')}
             active={currentView === 'library'}
             onClick={() => onNavigate('library')}
           />
 
           <div className="pt-8 pb-2">
              <div className="px-4 flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-white/40 uppercase tracking-wider">Recent Projects</p>
+                <p className="text-xs font-medium text-white/40 uppercase tracking-wider">{t('dashboard.recent_projects')}</p>
              </div>
-             
+
              <div className="space-y-0.5">
                {recentProjects.length > 0 ? (
                  recentProjects.map(project => (
@@ -102,7 +118,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
                  ))
                ) : (
                  <div className="px-4 py-6 text-center">
-                   <p className="text-xs text-white/30">No projects yet</p>
+                   <p className="text-xs text-white/30">{t('dashboard.no_projects_yet')}</p>
                  </div>
                )}
              </div>
@@ -145,7 +161,7 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
               <LogOut className="w-4 h-4 text-white/60 group-hover:text-red-400 transition-colors" />
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-white/60 group-hover:text-red-400 transition-colors">Log out</p>
+              <p className="text-sm font-medium text-white/60 group-hover:text-red-400 transition-colors">{t('dashboard.logout')}</p>
             </div>
           </button>
         </div>
@@ -153,9 +169,9 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
 
         {/* MOBILE BOTTOM NAV */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#0C0C0F] border-t border-white/10 z-50 flex items-center justify-around px-2">
-           <MobileNavItem icon={<LayoutDashboard />} label="Home" active={currentView === 'dashboard'} onClick={() => onNavigate('dashboard')} />
-           <MobileNavItem icon={<FileText />} label="Projects" active={currentView === 'library'} onClick={() => onNavigate('library')} />
-           <MobileNavItem icon={<User />} label="Profile" active={currentView === 'profile'} onClick={() => onNavigate('profile')} />
+           <MobileNavItem icon={<LayoutDashboard />} label={t('dashboard.home')} active={currentView === 'dashboard'} onClick={() => onNavigate('dashboard')} />
+           <MobileNavItem icon={<FileText />} label={t('dashboard.projects')} active={currentView === 'library'} onClick={() => onNavigate('library')} />
+           <MobileNavItem icon={<User />} label={t('dashboard.profile')} active={currentView === 'profile'} onClick={() => onNavigate('profile')} />
            
            {/* Mobile FAB */}
            <div className="absolute bottom-[80px] right-4">
@@ -174,6 +190,72 @@ export function DashboardLayout({ children, currentView, onNavigate, onUpload, o
              <span className="hover:text-white/80 transition-colors cursor-pointer" onClick={() => onNavigate('dashboard')}>Arma</span>
              <span>/</span>
              <span className="text-white/90 font-medium capitalize">{currentView ? currentView.replace('-', ' ') : 'Dashboard'}</span>
+          </div>
+
+          {/* Language Switcher */}
+          <div ref={langRef} className="relative">
+            <motion.button
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/10 text-xs font-medium text-white/80 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Globe className="w-3.5 h-3.5 text-primary" />
+              <motion.span
+                key={language}
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="sm:inline"
+              >
+                {languageNames[language]}
+              </motion.span>
+              <motion.div
+                animate={{ rotate: langOpen ? 90 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronRight className="w-3 h-3 text-white/40" />
+              </motion.div>
+            </motion.button>
+            <AnimatePresence>
+              {langOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-[#1A1A1E] border border-white/10 shadow-xl overflow-hidden z-50"
+                >
+                  {(Object.keys(languageNames) as Language[]).map((lang) => (
+                    <motion.button
+                      key={lang}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: (Object.keys(languageNames) as Language[]).indexOf(lang) * 0.04 }}
+                      onClick={() => { setLanguage(lang); setLangOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex gap-2 items-center justify-between ${
+                        language === lang
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{languageNames[lang]}</span>
+                      <AnimatePresence>
+                        {language === lang && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </header>
 

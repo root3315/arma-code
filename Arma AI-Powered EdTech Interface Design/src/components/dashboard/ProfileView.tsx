@@ -5,11 +5,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authApi, billingApi } from '../../services/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { UsageSummary } from '../../types/api';
+import { useTranslation } from '../../i18n/I18nContext';
 
 export function ProfileView() {
   const [activeTab, setActiveTab] = useState('Account');
   const [searchParams] = useSearchParams();
   const { user, refreshSubscription } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (searchParams.get('checkout') === 'success') {
@@ -21,12 +23,12 @@ export function ProfileView() {
   return (
     <div className="flex flex-col h-full bg-[#0C0C0F] relative overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full">
-         <h1 className="text-2xl md:text-3xl font-medium text-white tracking-tight mb-8">Settings</h1>
+         <h1 className="text-2xl md:text-3xl font-medium text-white tracking-tight mb-8">{t('profile.settings')}</h1>
 
          <div className="grid md:grid-cols-[240px_1fr] gap-4 md:gap-8">
             {/* Sidebar */}
             <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible scrollbar-hide">
-               {['Account', 'Billing', 'Security'].map(tab => (
+               {[t('profile.account'), t('profile.billing'), t('profile.security')].map(tab => (
                  <button
                    key={tab}
                    onClick={() => setActiveTab(tab)}
@@ -48,9 +50,9 @@ export function ProfileView() {
 
             {/* Content */}
             <div className="space-y-6">
-               {activeTab === 'Account' && <AccountSettings />}
-               {activeTab === 'Billing' && <BillingSettings />}
-               {activeTab === 'Security' && <SecuritySettings />}
+               {activeTab === t('profile.account') && <AccountSettings />}
+               {activeTab === t('profile.billing') && <BillingSettings />}
+               {activeTab === t('profile.security') && <SecuritySettings />}
             </div>
          </div>
       </div>
@@ -61,11 +63,12 @@ export function ProfileView() {
 function LogoutButton() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
-    toast.success('Logged out successfully');
+    toast.success(t('profile.logout'));
   };
 
   return (
@@ -74,7 +77,7 @@ function LogoutButton() {
       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
     >
       <LogOut size={16} />
-      Log Out
+      {t('profile.logout')}
     </button>
   );
 }
@@ -207,6 +210,7 @@ function BillingSettings() {
 
 function AccountSettings() {
   const { user, refreshUser } = useAuth();
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
@@ -247,9 +251,9 @@ function AccountSettings() {
     try {
       await authApi.updateMe({ full_name: fullName, email });
       await refreshUser();
-      toast.success('Profile updated successfully');
+      toast.success(t('profile.profile_updated'));
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to update profile');
+      toast.error(err.response?.data?.detail || t('profile.update_failed'));
     } finally {
       setSaving(false);
     }
@@ -258,7 +262,7 @@ function AccountSettings() {
   return (
     <div className="space-y-6">
        <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-          <h2 className="text-lg font-medium text-white mb-6">Profile Details</h2>
+          <h2 className="text-lg font-medium text-white mb-6">{t('profile.profile_details')}</h2>
 
           {/* Avatar */}
           <div className="flex items-center gap-6 mb-8">
@@ -273,32 +277,32 @@ function AccountSettings() {
              </div>
              <div>
                 <label className="cursor-pointer px-4 py-2 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors inline-block mb-2">
-                  Change Avatar
+                  {t('profile.change_avatar')}
                   <input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handleAvatarChange} className="hidden" />
                 </label>
-                <p className="text-xs text-white/30">JPG or PNG. Max 1MB.</p>
+                <p className="text-xs text-white/30">{t('profile.avatar_desc')}</p>
              </div>
           </div>
 
           {/* Form */}
           <div className="grid gap-4">
              <div className="space-y-2">
-                <label className="text-xs text-white/40 uppercase tracking-wider">Full Name</label>
+                <label className="text-xs text-white/40 uppercase tracking-wider">{t('profile.full_name')}</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Enter your full name"
+                  placeholder={t('profile.full_name_placeholder')}
                   className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
                 />
              </div>
              <div className="space-y-2">
-                <label className="text-xs text-white/40 uppercase tracking-wider">Email Address</label>
+                <label className="text-xs text-white/40 uppercase tracking-wider">{t('profile.email')}</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder={t('profile.email_placeholder')}
                   className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
                 />
              </div>
@@ -310,7 +314,7 @@ function AccountSettings() {
                disabled={saving}
                className="px-6 py-2 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               {saving ? 'Saving...' : 'Save Changes'}
+               {saving ? t('profile.saving') : t('profile.save_changes')}
              </button>
           </div>
        </div>
@@ -323,18 +327,19 @@ function SecuritySettings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changing, setChanging] = useState(false);
+  const { t } = useTranslation();
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('All fields are required');
+      toast.error(t('profile.all_fields_required'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error(t('profile.passwords_mismatch'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      toast.error(t('profile.password_min_length'));
       return;
     }
 
@@ -344,7 +349,7 @@ function SecuritySettings() {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      toast.success('Password changed successfully');
+      toast.success(t('profile.password_changed'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -354,7 +359,7 @@ function SecuritySettings() {
         ? detail.map((e: any) => e.msg).join(', ')
         : typeof detail === 'string'
           ? detail
-          : 'Failed to change password';
+          : t('profile.password_change_failed');
       toast.error(message);
     } finally {
       setChanging(false);
@@ -365,35 +370,35 @@ function SecuritySettings() {
     <div className="space-y-6">
       {/* Change Password */}
       <div className="p-4 md:p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-        <h2 className="text-lg font-medium text-white mb-6">Change Password</h2>
+        <h2 className="text-lg font-medium text-white mb-6">{t('profile.change_password')}</h2>
         <div className="grid gap-4">
           <div className="space-y-2">
-            <label className="text-xs text-white/40 uppercase tracking-wider">Current Password</label>
+            <label className="text-xs text-white/40 uppercase tracking-wider">{t('profile.current_password')}</label>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter current password"
+              placeholder={t('profile.current_password_placeholder')}
               className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-white/40 uppercase tracking-wider">New Password</label>
+            <label className="text-xs text-white/40 uppercase tracking-wider">{t('profile.new_password')}</label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
+              placeholder={t('profile.new_password_placeholder')}
               className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-white/40 uppercase tracking-wider">Confirm New Password</label>
+            <label className="text-xs text-white/40 uppercase tracking-wider">{t('profile.confirm_new_password')}</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
+              placeholder={t('profile.confirm_new_password_placeholder')}
               className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/20 focus:border-primary/50 outline-none transition-colors"
             />
           </div>
@@ -404,7 +409,7 @@ function SecuritySettings() {
             disabled={changing}
             className="px-6 py-2 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {changing ? 'Changing...' : 'Change Password'}
+            {changing ? t('profile.changing_password') : t('profile.change_password_btn')}
           </button>
         </div>
       </div>

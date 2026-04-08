@@ -2,6 +2,7 @@
 
 import { FileText, X } from "lucide-react";
 import { useState, useRef } from "react";
+import { useTranslation } from '../../i18n/I18nContext';
 import { toast } from "sonner";
 
 interface FileInputProps {
@@ -11,6 +12,7 @@ interface FileInputProps {
 }
 
 function FileInput({ file, onAdd, onDelete }: FileInputProps) {
+  const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +50,7 @@ function FileInput({ file, onAdd, onDelete }: FileInputProps) {
     const invalidFiles = files.length - validFiles.length;
 
     if (invalidFiles > 0) {
-      toast.error("Some files were skipped. Only PDF, DOCX, DOC and TXT are supported");
+      toast.error(t('upload.unsupported_files'));
     }
 
     if (validFiles.length === 0) {
@@ -144,16 +146,16 @@ function FileInput({ file, onAdd, onDelete }: FileInputProps) {
             <FileText size={32} />
           </div>
           <p className="text-white/80 font-medium mb-1">
-            Drag & drop your files here
+            {t('upload.drag_drop')}
           </p>
           <p className="text-white/40 text-sm my-1">
-            (Support PDF, DOCX, DOC, TXT)
+            {t('upload.supported_formats')}
           </p>
           <p className="text-white/40 text-sm mb-4">
-            or click to browse files
+            {t('upload.or_browse')}
           </p>
           <button className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-colors">
-            Choose Files
+            {t('upload.choose_files')}
           </button>
         </>
       )}

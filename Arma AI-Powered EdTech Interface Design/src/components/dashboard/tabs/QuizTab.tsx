@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
     CheckCircle2, ChevronRight, Play, Brain, Check, X, RotateCw, Loader2
 } from 'lucide-react';
+import { useTranslation } from '../../../i18n/I18nContext';
 import { toast } from 'sonner';
 import type { Material, QuizQuestion } from '../../../types/api';
 
@@ -16,6 +17,7 @@ export interface QuizTabProps {
 const PREVIEW_COUNT = 3;
 
 export function QuizTab({ material, questions, loading, viewMode = 'single' }: QuizTabProps) {
+    const { t } = useTranslation();
     const [quizStarted, setQuizStarted] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
             <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                     <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
-                    <p className="text-white/40">Loading quiz...</p>
+                    <p className="text-white/40">{t('quiz.loading')}</p>
                 </div>
             </div>
         );
@@ -92,15 +94,15 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                 <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center text-white/20 mb-6">
                     <CheckCircle2 size={40} />
                 </div>
-                <h2 className="text-2xl font-medium text-white mb-2">No Quiz Yet</h2>
+                <h2 className="text-2xl font-medium text-white mb-2">{t('quiz.no_quiz')}</h2>
                 <p className="text-white/40 max-w-md mb-8">
-                    Quiz questions have not been generated for {viewMode === 'all' ? 'these materials' : 'this material'} yet.
+                    {t('quiz.not_generated', { context: viewMode === 'all' ? 'all' : 'single' })}
                 </p>
                 <button
-                    onClick={() => toast.info('Quiz generation coming soon')}
+                    onClick={() => toast.info(t('quiz.coming_soon'))}
                     className="px-6 py-3 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all"
                 >
-                    Generate Quiz
+                    {t('quiz.generate')}
                 </button>
             </div>
         );
@@ -145,16 +147,16 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                 >
                                     {percentage}%
                                 </motion.span>
-                                <span className="text-white/40 text-sm">Score</span>
+                                <span className="text-white/40 text-sm">{t('quiz.score')}</span>
                             </div>
                         </div>
 
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                             <h2 className={`text-3xl font-bold mb-2 ${isPassing ? 'text-emerald-400' : 'text-primary'}`}>
-                                {isPassing ? '🎉 Excellent!' : '📚 Keep Learning!'}
+                                {isPassing ? t('quiz.excellent') : t('quiz.keep_learning')}
                             </h2>
                             <p className="text-white/60 mb-6">
-                                You got {score} out of {questions.length} questions correct
+                                {t('quiz.score_detail', { correct: score, total: questions.length })}
                             </p>
                         </motion.div>
 
@@ -166,15 +168,15 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                         >
                             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                                 <div className="text-2xl font-bold text-emerald-400">{score}</div>
-                                <div className="text-xs text-white/40">Correct</div>
+                                <div className="text-xs text-white/40">{t('quiz.correct')}</div>
                             </div>
                             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
                                 <div className="text-2xl font-bold text-red-400">{questions.length - score}</div>
-                                <div className="text-xs text-white/40">Incorrect</div>
+                                <div className="text-xs text-white/40">{t('quiz.incorrect')}</div>
                             </div>
                             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                                 <div className="text-2xl font-bold text-white">{questions.length}</div>
-                                <div className="text-xs text-white/40">Total</div>
+                                <div className="text-xs text-white/40">{t('quiz.total')}</div>
                             </div>
                         </motion.div>
 
@@ -189,7 +191,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                 className="flex-1 px-6 py-4 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
                             >
                                 <RotateCw size={18} />
-                                Try Again
+                                {t('quiz.try_again')}
                             </button>
                             <button
                                 onClick={() => {
@@ -200,7 +202,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                 }}
                                 className="px-6 py-4 bg-white/5 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
                             >
-                                Back to Preview
+                                {t('quiz.back_to_preview')}
                             </button>
                         </motion.div>
                     </motion.div>
@@ -229,7 +231,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                         <div className="flex items-center justify-between mb-4">
                             <button
                                 onClick={() => {
-                                    if (confirm('Are you sure you want to exit? Your progress will be lost.')) {
+                                    if (confirm(t('quiz.exit_confirm'))) {
                                         setQuizStarted(false);
                                         setCurrentQuestion(0);
                                         setAnswers({});
@@ -238,11 +240,11 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                 className="flex items-center gap-2 text-white/40 hover:text-white transition-colors"
                             >
                                 <X size={18} />
-                                <span className="text-sm">Exit Quiz</span>
+                                <span className="text-sm">{t('quiz.exit')}</span>
                             </button>
                             <div className="flex items-center gap-4">
                                 <div className="text-sm text-white/60">
-                                    Question <span className="text-white font-bold">{currentQuestion + 1}</span> of {questions.length}
+                                    {t('quiz.question_label')} <span className="text-white font-bold">{currentQuestion + 1}</span> {t('quiz.of')} {questions.length}
                                 </div>
                             </div>
                         </div>
@@ -271,7 +273,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                 transition={{ duration: 0.3 }}
                             >
                                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6">
-                                    <span className="text-xs font-bold text-primary">QUESTION {currentQuestion + 1}</span>
+                                    <span className="text-xs font-bold text-primary">{t('quiz.question_num', { num: currentQuestion + 1 })}</span>
                                 </div>
 
                                 <h2 className="text-2xl md:text-3xl font-medium text-white leading-relaxed mb-10">
@@ -342,7 +344,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                                                 : 'bg-red-500 text-white'
                                                             }`}
                                                     >
-                                                        {isCorrect ? 'Correct!' : 'Incorrect'}
+                                                        {isCorrect ? t('quiz.correct_feedback') : t('quiz.incorrect_feedback')}
                                                     </motion.div>
                                                 )}
                                             </motion.button>
@@ -371,10 +373,10 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                             <div className="flex-1">
                                                 <h4 className={`text-sm font-bold mb-3 ${isCorrect ? 'text-emerald-400' : 'text-amber-400'
                                                     }`}>
-                                                    {isCorrect ? '🎉 Correct!' : '💡 Explanation'}
+                                                    {isCorrect ? t('quiz.correct_expl') : t('quiz.explanation')}
                                                 </h4>
                                                 <div className="mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                                                    <div className="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">Correct Answer</div>
+                                                    <div className="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">{t('quiz.correct_answer')}</div>
                                                     <div className="flex items-center gap-3">
                                                         <span className="w-8 h-8 rounded-lg bg-emerald-500 text-white font-bold flex items-center justify-center">
                                                             <Check size={16} />
@@ -386,7 +388,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                                 </div>
                                                 {!isCorrect && selectedAnswer && (
                                                     <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                                                        <div className="text-xs text-red-400/60 uppercase tracking-wider mb-1">Your Answer</div>
+                                                        <div className="text-xs text-red-400/60 uppercase tracking-wider mb-1">{t('quiz.your_answer')}</div>
                                                         <div className="flex items-center gap-3">
                                                             <span className="w-8 h-8 rounded-lg bg-red-500 text-white font-bold flex items-center justify-center">
                                                                 <X size={16} />
@@ -416,7 +418,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                     disabled={currentQuestion === 0}
                                     className="px-4 py-2 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                                 >
-                                    Previous
+                                    {t('quiz.previous')}
                                 </button>
                             </div>
 
@@ -426,7 +428,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                     disabled={!selectedAnswer}
                                     className="px-8 py-3 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                                 >
-                                    Confirm Answer
+                                    {t('quiz.confirm_answer')}
                                     <ChevronRight size={18} />
                                 </button>
                             ) : (
@@ -434,7 +436,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                                     onClick={currentQuestion === questions.length - 1 ? () => setShowResult(true) : handleNextQuestion}
                                     className="px-8 py-3 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
                                 >
-                                    {currentQuestion === questions.length - 1 ? 'See Results' : 'Next Question'}
+                                    {currentQuestion === questions.length - 1 ? t('quiz.see_results') : t('quiz.next_question')}
                                     <ChevronRight size={18} />
                                 </button>
                             )}
@@ -476,39 +478,39 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                         <CheckCircle2 size={32} className="text-emerald-500" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-medium text-white mb-1">Quiz Ready</h2>
-                        <p className="text-white/40 text-sm">{material?.title || (viewMode === 'all' ? 'All Materials' : 'Material')}</p>
+                        <h2 className="text-2xl font-medium text-white mb-1">{t('quiz.quiz_ready')}</h2>
+                        <p className="text-white/40 text-sm">{material?.title || (viewMode === 'all' ? t('project.view_mode.all') : t('quiz.material'))}</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                         <div className="text-xl font-bold text-white mb-1">{questions.length}</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Questions</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('quiz.questions_label')}</div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                        <div className="text-xl font-bold text-emerald-400 mb-1">Multiple Choice</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Format</div>
+                        <div className="text-xl font-bold text-emerald-400 mb-1">{t('quiz.multiple_choice')}</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('quiz.format')}</div>
                     </div>
                     <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                        <div className="text-xl font-bold text-white mb-1">{material?.type?.toUpperCase() || 'N/A'}</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Source</div>
+                        <div className="text-xl font-bold text-white mb-1">{material?.type?.toUpperCase() || t('quiz.na')}</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">{t('quiz.source')}</div>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-4 mb-8">
-                <h3 className="text-sm font-medium text-white/60 mb-4">Question Preview</h3>
+                <h3 className="text-sm font-medium text-white/60 mb-4">{t('quiz.question_preview')}</h3>
                 {questions.slice(0, PREVIEW_COUNT).map((q, idx) => {
                     const options = [q.option_a, q.option_b, q.option_c, q.option_d];
                     return (
                         <div key={q.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
                             <div>
-                                <div className="text-xs text-white/30 mb-1">Question {idx + 1}:</div>
+                                <div className="text-xs text-white/30 mb-1">{t('quiz.question_num', { num: idx + 1 })}</div>
                                 <div className="text-white/90">{q.question}</div>
                             </div>
                             <div>
-                                <div className="text-xs text-white/30 mb-1">Options:</div>
+                                <div className="text-xs text-white/30 mb-1">{t('quiz.options')}</div>
                                 <div className="grid grid-cols-2 gap-2 text-sm text-white/60">
                                     {options.map((option, optIdx) => (
                                         <div key={optIdx} className="flex items-start gap-1">
@@ -522,7 +524,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                     );
                 })}
                 {questions.length > PREVIEW_COUNT && (
-                    <p className="text-xs text-white/30 text-center">+ {questions.length - PREVIEW_COUNT} more questions</p>
+                    <p className="text-xs text-white/30 text-center">+ {questions.length - PREVIEW_COUNT} {t('quiz.more_questions')}</p>
                 )}
             </div>
 
@@ -531,7 +533,7 @@ export function QuizTab({ material, questions, loading, viewMode = 'single' }: Q
                 className="w-full px-8 py-4 bg-primary text-black rounded-xl font-bold text-lg hover:bg-primary/90 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(255,138,61,0.2)] flex items-center justify-center gap-3"
             >
                 <Play size={20} fill="currentColor" />
-                Start Quiz
+                {t('quiz.start_quiz')}
             </button>
         </div>
     );

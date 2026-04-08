@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useProject, useProjectContent, useMaterialContent, useTutorChat } from '../hooks/useApi';
 import { useProjectProgress } from '../hooks/useProjectProgress';
+import { useTranslation } from '../i18n/I18nContext';
 import { toast } from 'sonner';
 import { projectsApi, materialsApi } from '../services/api';
 import { FlashcardsTab } from '../components/dashboard/tabs/FlashcardsTab';
@@ -20,6 +21,7 @@ export function ProjectDetailView() {
   const { project, loading, refetch } = useProject(projectId || null);
   const { content, loading: contentLoading } = useProjectContent(projectId || null);
   const { progress, markSummaryRead, markFlashcardsComplete } = useProjectProgress(projectId || null);
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'chat' | 'materials' | 'summary' | 'flashcards' | 'quiz'>('materials');
   const [showCelebration, setShowCelebration] = useState(false);
   const [viewMode, setViewMode] = useState<'all' | 'single'>('all');
@@ -247,7 +249,7 @@ export function ProjectDetailView() {
                 <div className="min-w-0">
                   <h1 className="truncate text-lg font-semibold text-white md:text-xl">{project?.name || 'Loading...'}</h1>
                   <p className="text-sm text-white/40">
-                    {project?.materials.length || 0} materials
+                    {project?.materials.length || 0} {project?.materials.length === 1 ? t('project.material_count') : t('project.materials_count')}
                   </p>
                 </div>
               </div>
@@ -259,7 +261,7 @@ export function ProjectDetailView() {
                 className="flex items-center gap-2 px-4 py-2 bg-[#FF8A3D] text-white rounded-lg hover:bg-[#FF8A3D]/90 transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer"
               >
                 <Plus size={16} />
-                <span className="hidden sm:inline">Add Material</span>
+                <span className="hidden sm:inline">{t('project.add_material')}</span>
               </button>
               <button
                 onClick={handleDeleteProject}
@@ -267,7 +269,7 @@ export function ProjectDetailView() {
                 className="flex w-auto items-center justify-center gap-2 rounded-lg bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50 cursor-pointer"
               >
                 {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                <span className="hidden sm:inline text-sm font-medium">Delete Project</span>
+                <span className="hidden sm:inline text-sm font-medium">{t('project.delete_project')}</span>
               </button>
             </div>
           </div>
@@ -287,7 +289,7 @@ export function ProjectDetailView() {
               }`}
             >
               <MessageSquare size={16} />
-              Chat
+              {t('project.tabs.chat')}
             </button>
             <button
               onClick={() => setActiveTab('materials')}
@@ -298,7 +300,7 @@ export function ProjectDetailView() {
               }`}
             >
               <FileText size={16} />
-              Materials
+              {t('project.tabs.materials')}
             </button>
             <button
               onClick={() => setActiveTab('summary')}
@@ -309,7 +311,7 @@ export function ProjectDetailView() {
               }`}
             >
               <BookOpen size={16} />
-              Summary
+              {t('project.tabs.summary')}
             </button>
             <button
               onClick={() => {
@@ -329,9 +331,9 @@ export function ProjectDetailView() {
               ) : (
                 <Lock size={16} />
               )}
-              Flashcards
+              {t('project.tabs.flashcards')}
               {!progress?.flashcards_unlocked && (
-                <span className="text-[10px] text-white/20 ml-1">(read summary first)</span>
+                <span className="text-[10px] text-white/20 ml-1">({t('project.read_summary_first')})</span>
               )}
             </button>
             <button
@@ -352,52 +354,13 @@ export function ProjectDetailView() {
               ) : (
                 <Lock size={16} />
               )}
-              Quiz
+              {t('project.tabs.quiz')}
               {!progress?.quiz_unlocked && (
-                <span className="text-[10px] text-white/20 ml-1">(complete flashcards first)</span>
+                <span className="text-[10px] text-white/20 ml-1">({t('project.complete_flashcards_first')})</span>
               )}
             </button>
 
-            {/* View Mode Toggle - for flashcards, quiz, and chat tabs */}
-            {(activeTab === 'flashcards' || activeTab === 'quiz' || activeTab === 'chat') && project && project.materials.length > 0 && (
-              <div className="ml-auto flex items-center gap-2 bg-white/5 rounded-lg p-1">
-                <button
-                  onClick={() => { setViewMode('all'); setSelectedMaterialId(null); }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    viewMode === 'all'
-                      ? 'bg-primary text-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  All Materials
-                </button>
-                <button
-                  onClick={() => { setViewMode('single'); setSelectedMaterialId(project.materials[0]?.id || null); }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    viewMode === 'single'
-                      ? 'bg-primary text-black'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Single Material
-                </button>
-
-                {/* Material selector dropdown */}
-                {viewMode === 'single' && (
-                  <select
-                    value={selectedMaterialId || ''}
-                    onChange={(e) => setSelectedMaterialId(e.target.value)}
-                    className="bg-white/10 border border-white/10 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-primary/50"
-                  >
-                    {project.materials.map(material => (
-                      <option key={material.id} value={material.id}>
-                        {material.title.length > 30 ? material.title.substring(0, 30) + '...' : material.title}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
+            
           </div>
         </div>
       </div>
@@ -483,7 +446,7 @@ export function ProjectDetailView() {
                   <ChatTab
                     material={{
                       id: projectId,
-                      title: 'All Materials',
+                      title: t('project.view_mode.all'),
                       type: 'mixed',
                       processing_status: 'completed',
                       processing_progress: 100,
@@ -510,16 +473,16 @@ export function ProjectDetailView() {
                         <MessageSquare className="w-8 h-8 text-primary" />
                       </div>
                       <h3 className="text-lg font-medium text-white mb-2">
-                        Select a Material to Chat
+                        {t('project.select_material')}
                       </h3>
                       <p className="text-white/40 mb-6">
-                        AI Tutor chat is available per material or for all materials in the project.
+                        {t('project.chat_desc')}
                       </p>
                       <button
                         onClick={() => { setViewMode('single'); setSelectedMaterialId(project?.materials[0]?.id || null); }}
                         className="px-6 py-3 bg-primary text-black rounded-xl font-bold hover:bg-primary/90 transition-all"
                       >
-                        Switch to Single Material
+                        {t('project.switch_single')}
                       </button>
                     </div>
                   </div>
@@ -546,7 +509,7 @@ export function ProjectDetailView() {
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                           <BookOpen className="w-4 h-4 text-primary" />
                         </div>
-                        <h2 className="text-xl font-semibold text-white">Summary (All Materials)</h2>
+                        <h2 className="text-xl font-semibold text-white">{t('project.summary_all')}</h2>
                       </div>
                       <div className="markdown-content text-white/70 leading-relaxed">
                         <ReactMarkdown
@@ -595,7 +558,7 @@ export function ProjectDetailView() {
                           <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
                             <FileText className="w-4 h-4 text-blue-400" />
                           </div>
-                          <h2 className="text-xl font-semibold text-white">Key Notes</h2>
+                          <h2 className="text-xl font-semibold text-white">{t('project.key_notes')}</h2>
                         </div>
                         <div className="markdown-content text-white/70 leading-relaxed">
                           <ReactMarkdown
@@ -641,15 +604,15 @@ export function ProjectDetailView() {
                     {/* Quick Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-                        <div className="text-sm text-white/40 mb-1">Materials</div>
+                        <div className="text-sm text-white/40 mb-1">{t('project.tabs.materials')}</div>
                         <div className="text-2xl font-semibold text-white">{content.total_materials}</div>
                       </div>
                       <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-                        <div className="text-sm text-white/40 mb-1">Flashcards</div>
+                        <div className="text-sm text-white/40 mb-1">{t('project.tabs.flashcards')}</div>
                         <div className="text-2xl font-semibold text-white">{content.flashcards?.length || 0}</div>
                       </div>
                       <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-                        <div className="text-sm text-white/40 mb-1">Quiz Questions</div>
+                        <div className="text-sm text-white/40 mb-1">{t('project.tabs.quiz')}</div>
                         <div className="text-2xl font-semibold text-white">{content.quiz?.length || 0}</div>
                       </div>
                     </div>
@@ -667,20 +630,20 @@ export function ProjectDetailView() {
                                 setActiveTab('flashcards');
                               }, 2500);
                             } catch {
-                              toast.error('Failed to mark summary as read');
+                              toast.error(t('project.failed_mark_summary'));
                             }
                           }}
                           className="cursor-pointer flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 text-emerald-400 rounded-xl font-bold hover:from-emerald-500/20 hover:to-emerald-500/10 transition-all text-lg"
                         >
                           <CheckCircle2 size={24} />
-                          I've Read This — Unlock Flashcards
+                          {t('project.mark_read')}
                         </button>
                       </div>
                     ) : (
                       <div className="flex justify-center pt-4">
                         <div className="flex items-center gap-2 px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm">
                           <CheckCircle size={16} />
-                          Summary read — Flashcards unlocked
+                          {t('project.summary_read')}
                         </div>
                       </div>
                     )}
@@ -706,7 +669,7 @@ export function ProjectDetailView() {
                             transition={{ delay: 0.2 }}
                             className="text-4xl font-bold text-white mb-3"
                           >
-                            You're Awesome!
+                            {t('project.celebration_title')}
                           </motion.h2>
                           <motion.p
                             initial={{ y: 20, opacity: 0 }}
@@ -714,7 +677,7 @@ export function ProjectDetailView() {
                             transition={{ delay: 0.4 }}
                             className="text-xl text-emerald-400 mb-2"
                           >
-                            Summary complete!
+                            {t('project.celebration_subtitle')}
                           </motion.p>
                           <motion.p
                             initial={{ y: 20, opacity: 0 }}
@@ -722,7 +685,7 @@ export function ProjectDetailView() {
                             transition={{ delay: 0.6 }}
                             className="text-white/60"
                           >
-                            Opening flashcards...
+                            {t('project.celebration_desc')}
                           </motion.p>
 
                           {['🎊', '✨', '🌟', '💫', '🎯'].map((emoji, i) => (
@@ -758,7 +721,7 @@ export function ProjectDetailView() {
                           <BookOpen className="w-4 h-4 text-blue-400" />
                         </div>
                         <div>
-                          <h2 className="text-xl font-semibold text-white">Summary (Single Material)</h2>
+                          <h2 className="text-xl font-semibold text-white">{t('project.summary_single')}</h2>
                           <p className="text-sm text-white/40 truncate max-w-md">{materialContent.title}</p>
                         </div>
                       </div>
@@ -795,7 +758,7 @@ export function ProjectDetailView() {
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-white/40 text-sm">No summary available for this material</p>
+                        <p className="text-white/40 text-sm">{t('project.no_summary')}</p>
                       )}
                     </div>
 
@@ -806,7 +769,7 @@ export function ProjectDetailView() {
                           <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
                             <FileText className="w-4 h-4 text-blue-400" />
                           </div>
-                          <h2 className="text-xl font-semibold text-white">Key Notes</h2>
+                          <h2 className="text-xl font-semibold text-white">{t('project.key_notes')}</h2>
                         </div>
                         <div className="markdown-content text-white/70 leading-relaxed">
                           <ReactMarkdown
@@ -845,7 +808,7 @@ export function ProjectDetailView() {
                 ) : (
                   <div className="text-center py-20 border border-dashed border-white/5 rounded-2xl">
                     <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                    <p className="text-white/40">Summary is being generated...</p>
+                    <p className="text-white/40">{t('project.summary_generating')}</p>
                     <p className="text-white/30 text-sm mt-2">
                       Status: {content?.processing_status || 'pending'}
                     </p>
@@ -869,7 +832,7 @@ export function ProjectDetailView() {
                   <FlashcardsTab
                     material={{
                       id: 'all',
-                      title: 'All Materials',
+                      title: t('project.view_mode.all'),
                       type: 'mixed',
                       processing_status: 'completed',
                       processing_progress: 100,
@@ -888,9 +851,9 @@ export function ProjectDetailView() {
                     onComplete={async () => {
                       try {
                         await markFlashcardsComplete();
-                        toast.success('Flashcards completed! Quiz unlocked 🎉');
+                        toast.success(t('project.flashcards_completed'));
                       } catch {
-                        toast.error('Failed to mark flashcards as complete');
+                        toast.error(t('project.failed_mark_flashcards'));
                       }
                     }}
                   />
@@ -912,9 +875,9 @@ export function ProjectDetailView() {
                           onComplete={async () => {
                             try {
                               await markFlashcardsComplete();
-                              toast.success('Flashcards completed! Quiz unlocked 🎉');
+                              toast.success(t('project.flashcards_completed'));
                             } catch {
-                              toast.error('Failed to mark flashcards as complete');
+                              toast.error(t('project.failed_mark_flashcards'));
                             }
                           }}
                         />
@@ -923,13 +886,13 @@ export function ProjectDetailView() {
                   ) : (
                     <div className="text-center py-20 col-span-full border border-dashed border-white/5 rounded-2xl">
                       <BrainCircuit className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                      <p className="text-white/40">No flashcards available for this material</p>
+                      <p className="text-white/40">{t('project.no_flashcards')}</p>
                     </div>
                   )
                 ) : (
                   <div className="text-center py-20 col-span-full border border-dashed border-white/5 rounded-2xl">
                     <BrainCircuit className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                    <p className="text-white/40">Flashcards are being generated...</p>
+                    <p className="text-white/40">{t('project.flashcards_generating')}</p>
                   </div>
                 )}
               </motion.div>
@@ -968,7 +931,7 @@ export function ProjectDetailView() {
                   ) : (
                     <div className="text-center py-20 border border-dashed border-white/5 rounded-2xl">
                       <ClipboardList className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                      <p className="text-white/40">No quiz available for this material</p>
+                      <p className="text-white/40">{t('project.no_quiz')}</p>
                     </div>
                   )
                 ) : viewMode === 'all' && content?.quiz && content.quiz.length > 0 ? (
@@ -976,7 +939,7 @@ export function ProjectDetailView() {
                   <QuizTab
                     material={{
                       id: 'all',
-                      title: 'All Materials',
+                      title: t('project.view_mode.all'),
                       type: 'mixed',
                       processing_status: 'completed',
                       processing_progress: 100,
@@ -996,7 +959,7 @@ export function ProjectDetailView() {
                 ) : (
                   <div className="text-center py-20 border border-dashed border-white/5 rounded-2xl">
                     <ClipboardList className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                    <p className="text-white/40">Quiz is being generated...</p>
+                    <p className="text-white/40">{t('project.quiz_generating')}</p>
                   </div>
                 )}
               </motion.div>

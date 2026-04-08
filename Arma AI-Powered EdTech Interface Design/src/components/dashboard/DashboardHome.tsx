@@ -3,10 +3,9 @@ import { FileText, Youtube, Clock, Sparkles, Plus, ArrowUpRight, Loader2, Refres
 import { motion, AnimatePresence } from 'motion/react';
 import { AICore } from '../shared/AICore';
 import { useMaterials, useProjects } from '../../hooks/useApi';
+import { useTranslation } from '../../i18n/I18nContext';
 import { toast } from 'sonner';
-import { SearchResultsModal } from '../shared/SearchResultsModal';
-import { searchApi, materialsApi } from '../../services/api';
-import type { SearchPhase, SearchResponse, SearchResult } from '../../types/api';
+import { materialsApi } from '../../services/api';
 import { ProjectCard } from './ProjectCard';
 import { DashboardHero } from './DashboardHero';
 
@@ -85,19 +84,14 @@ interface DashboardHomeProps {
   onMaterialClick: (id: string) => void;
   onUpload: () => void;
   onProjectClick?: (id: string) => void;
+  onSearch?: (query: string) => void;
 }
 
-export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: DashboardHomeProps) {
+export function DashboardHome({ onMaterialClick, onUpload, onProjectClick, onSearch }: DashboardHomeProps) {
   const [inputValue, setInputValue] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [aiAnswer, setAiAnswer] = useState<string | undefined>(undefined);
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isRefiningSearch, setIsRefiningSearch] = useState(false);
-  const [searchPhase, setSearchPhase] = useState<SearchPhase>('fast');
   const [suggestions, setSuggestions] = useState<string[]>(() => getRandomSuggestions(3));
-  const [suggestionKey, setSuggestionKey] = useState(0); // For animation reset
+  const [suggestionKey, setSuggestionKey] = useState(0);
+  const { t } = useTranslation();
   const { materials, loading, refetch } = useMaterials();
   const { projects, loading: projectsLoading, refetch: refetchProjects } = useProjects();
 
@@ -123,91 +117,11 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
   // Get recent materials (last 6)
   const recentMaterials = materials.slice(0, 6);
 
-  const mergeSearchResults = useCallback((current: SearchResult[], incoming: SearchResult[]) => {
-    const merged = new Map<string, SearchResult>();
-
-    for (const result of current) {
-      merged.set(result.url, result);
-    }
-
-    for (const result of incoming) {
-      merged.set(result.url, result);
-    }
-
-    return Array.from(merged.values());
-  }, []);
-
-  const sortSearchResults = useCallback((results: SearchResult[]) => {
-    const sourceScore = (result: SearchResult) => {
-      const source = (result.source || '').toLowerCase();
-
-      if (result.type === 'youtube') return 200;
-      if (source.includes('arxiv.org')) return 180;
-      if (source.includes('docs.python.org')) return 170;
-      if (source.includes('python.org')) return 165;
-      if (source.includes('w3schools.com')) return 160;
-      if (source.includes('youtube.com')) return 150;
-      if (source.includes('researchgate.net')) return 20;
-      return 100;
-    };
-
-    return [...results].sort((a, b) => sourceScore(b) - sourceScore(a));
-  }, []);
-
   const handleSearch = async (query?: string) => {
     const searchText = query || inputValue;
     if (!searchText.trim()) return;
-
-    // Update input if searching from suggestion
-    if (query) {
-      setInputValue(query);
-    }
-
-    setSearchQuery(searchText);
-    setSearchPhase('fast');
-    setIsSearching(true);
-    setIsRefiningSearch(false);
-    setIsSearchModalOpen(true);
-    setSearchResults([]);
-    setAiAnswer(undefined);
-
-    try {
-      const fastResponse = await searchApi.search({
-        query: searchText,
-        types: ['pdf', 'youtube', 'article'],
-        limit: 10,
-        phase: 'fast',
-      });
-
-      setSearchResults(sortSearchResults(fastResponse.results || []));
-      setAiAnswer(fastResponse.ai_answer);
-      setSearchPhase('fast');
-
-      if (fastResponse.is_partial) {
-        setIsRefiningSearch(true);
-
-        try {
-          const fullResponse = await searchApi.search({
-            query: searchText,
-            types: ['pdf', 'youtube', 'article'],
-            limit: 10,
-            phase: 'full',
-          });
-
-          setSearchResults((prev) => sortSearchResults(mergeSearchResults(prev, fullResponse.results || [])));
-          setAiAnswer(fullResponse.ai_answer ?? fastResponse.ai_answer);
-          setSearchPhase('full');
-        } catch {
-          toast.error('Refined search failed. Showing fast results only.');
-        } finally {
-          setIsRefiningSearch(false);
-        }
-      }
-    } catch (error) {
-      toast.error('Failed to search. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
+    if (query) setInputValue(query);
+    onSearch?.(searchText);
   };
 
   // Handle suggestion chip click - insert and search
@@ -215,7 +129,7 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
     handleSearch(text);
   };
 
-  const handleSelectResult = async (result: SearchResult) => {
+  const handleSelectResult = async (result: any) => {
     try {
       // Determine material type based on result type
       const materialType = result.type === 'youtube' ? 'youtube' : result.type === 'article' ? 'article' : 'pdf';
@@ -248,11 +162,11 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
     setRetryingMaterialId(materialId);
     try {
       await materialsApi.retry(materialId);
-      toast.success('Processing restarted');
+      toast.success(t('dashboard.processing_restarted'));
       // Refresh materials to get updated status
       await refetch();
     } catch (error) {
-      toast.error('Failed to restart processing');
+      toast.error(t('dashboard.restart_failed'));
     } finally {
       setRetryingMaterialId(null);
     }
@@ -335,14 +249,14 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
             <FolderOpen className="w-6 h-6 text-primary/70" />
-            <h2 className="text-lg md:text-xl font-medium text-white/80">Your Projects</h2>
+            <h2 className="text-lg md:text-xl font-medium text-white/80">{t('dashboard.your_projects')}</h2>
           </div>
           <button
             onClick={onUpload}
             className="text-sm text-primary hover:underline flex items-center gap-1"
           >
             <Plus size={14} />
-            New Project
+            {t('dashboard.new_project')}
           </button>
         </div>
 
@@ -353,12 +267,12 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
         ) : projects.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-white/5 rounded-2xl">
             <FolderOpen className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <p className="text-white/40 mb-4">No projects yet</p>
+            <p className="text-white/40 mb-4">{t('dashboard.no_projects_yet')}</p>
             <button
               onClick={onUpload}
               className="px-6 py-2.5 bg-primary text-black font-medium rounded-xl hover:bg-primary/90 transition-colors"
             >
-              Create your first project
+              {t('dashboard.create_first_project')}
             </button>
           </div>
         ) : (
@@ -384,20 +298,6 @@ export function DashboardHome({ onMaterialClick, onUpload, onProjectClick }: Das
           </div>
         )}
       </div>
-
-      {/* Search Results Modal */}
-      {isSearchModalOpen && (
-        <SearchResultsModal
-          query={searchQuery}
-          results={searchResults}
-          loading={isSearching}
-          refining={isRefiningSearch}
-          phase={searchPhase}
-          aiAnswer={aiAnswer}
-          onClose={() => setIsSearchModalOpen(false)}
-          onSelectResult={handleSelectResult}
-        />
-      )}
     </div>
   );
 }

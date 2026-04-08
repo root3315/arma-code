@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, Brain, Play, FileText, MessageSquare, Headphones, MonitorPlay, CheckCircle2, ChevronRight, Upload, Sparkles, Youtube, Check } from 'lucide-react';
 import { AICore } from '../shared/AICore';
 import { Header } from '../ui/header';
+import { useTranslation } from '../../i18n/I18nContext';
 import { useNavigate } from 'react-router-dom';
 
 interface LandingPageProps {
@@ -11,6 +12,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onStart }: LandingPageProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0C0C0F] text-foreground overflow-hidden font-sans selection:bg-primary/20 selection:text-primary relative">
@@ -52,27 +54,27 @@ export function LandingPage({ onStart }: LandingPageProps) {
           className="text-center max-w-4xl mx-auto space-y-8 relative z-10"
         >
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white leading-[1.1] drop-shadow-2xl">
-            Unlock Your Best <br/>
+            {t('landing.hero_title')} <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white/80 to-white/40">
-              Learning With arma
+              {t('landing.hero_subtitle')}
             </span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-white/60 font-light max-w-2xl mx-auto leading-relaxed">
-            Your ultimate study helper. Learn your way with flashcards, quizzes, podcasts, and presentations powered by built-in AI.
+            {t('landing.hero_description')}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8">
-            <button 
+            <button
               onClick={onStart}
               className="w-full sm:w-auto px-10 py-4 bg-white text-black text-lg font-bold rounded-full hover:bg-white/90 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 relative overflow-hidden group"
             >
-              <span className="relative z-10 flex items-center gap-2">Start Learning <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
+              <span className="relative z-10 flex items-center gap-2">{t('landing.start_learning_btn')} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
             </button>
-            
+
             <button className="w-full sm:w-auto px-10 py-4 bg-white/5 text-white border border-white/10 text-lg font-medium rounded-full hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2 backdrop-blur-md">
-              Learn more
+              {t('landing.learn_more_btn')}
             </button>
           </div>
         </motion.div>
@@ -93,33 +95,33 @@ export function LandingPage({ onStart }: LandingPageProps) {
       <section className="py-32 relative z-10 border-t border-white/[0.03]">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-medium text-white mb-6">How to use? — Simple.</h2>
+            <h2 className="text-3xl md:text-5xl font-medium text-white mb-6">{t('landing.how_to_use_title')}</h2>
             <p className="text-white/40 text-lg max-w-xl mx-auto">
-              Upload any type of document or YouTube video. arma processes the content and generates learning materials automatically.
+              {t('landing.how_to_use_desc')}
             </p>
           </div>
 
           <div className="relative grid md:grid-cols-3 gap-12">
             {/* Connecting Line */}
             <div className="absolute top-12 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent hidden md:block" />
-            
+
             {[
-              { 
-                step: "01", 
-                title: "Upload what you don't understand", 
-                desc: "PDF documents or YouTube video links.",
+              {
+                step: "01",
+                title: t('landing.step_01_title'),
+                desc: t('landing.step_01_desc'),
                 icon: <Upload className="w-6 h-6 text-white" />
               },
-              { 
-                step: "02", 
-                title: "Let our AI process your material", 
-                desc: "Advanced neural processing analyzes structure.",
+              {
+                step: "02",
+                title: t('landing.step_02_title'),
+                desc: t('landing.step_02_desc'),
                 icon: <Sparkles className="w-6 h-6 text-primary" />
               },
-              { 
-                step: "03", 
-                title: "Learn using multiple formats", 
-                desc: "Quizzes, Flashcards, Podcasts, Slides.",
+              {
+                step: "03",
+                title: t('landing.step_03_title'),
+                desc: t('landing.step_03_desc'),
                 icon: <Brain className="w-6 h-6 text-white" />
               }
             ].map((item, i) => (
@@ -146,9 +148,9 @@ export function LandingPage({ onStart }: LandingPageProps) {
           
           <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h2 className="text-3xl font-medium text-white">More ways to learn with arma</h2>
+              <h2 className="text-3xl font-medium text-white">{t('landing.more_ways_title')}</h2>
               <p className="text-white/50 leading-relaxed">
-                Seamlessly integrate your study materials. Whether it's a textbook chapter or an educational video, arma adapts.
+                {t('landing.more_ways_desc')}
               </p>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-primary/30 transition-colors group cursor-pointer">
@@ -156,8 +158,8 @@ export function LandingPage({ onStart }: LandingPageProps) {
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">Upload Files (PDF)</h4>
-                    <p className="text-xs text-white/40">Only PDF files are allowed for document upload.</p>
+                    <h4 className="text-white font-medium">{t('landing.upload_files')}</h4>
+                    <p className="text-xs text-white/40">{t('landing.upload_files_desc')}</p>
                   </div>
                 </div>
                 
@@ -166,8 +168,8 @@ export function LandingPage({ onStart }: LandingPageProps) {
                     <Youtube size={20} />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">YouTube Video Link</h4>
-                    <p className="text-xs text-white/40">Paste any educational video URL.</p>
+                    <h4 className="text-white font-medium">{t('landing.youtube_link')}</h4>
+                    <p className="text-xs text-white/40">{t('landing.youtube_link_desc')}</p>
                   </div>
                 </div>
               </div>
@@ -208,18 +210,17 @@ export function LandingPage({ onStart }: LandingPageProps) {
              <AICore size="sm" />
           </div>
           
-          <h2 className="text-3xl md:text-4xl font-medium text-white">Let our AI process your material</h2>
+          <h2 className="text-3xl md:text-4xl font-medium text-white">{t('landing.ai_process_title')}</h2>
           <p className="text-xl text-white/50 font-light leading-relaxed">
-            After you upload your material, our AI starts processing it <br className="hidden md:block" />
-            and builds your personal learning experience.
+            {t('landing.ai_process_desc')}
           </p>
-          
+
           {/* Progress Indicator Visual */}
           <div className="max-w-md mx-auto mt-12">
             <div className="flex justify-between text-xs text-white/40 mb-2 font-mono uppercase tracking-wider">
-              <span>Analyzing</span>
-              <span>Generating</span>
-              <span>Complete</span>
+              <span>{t('landing.ai_analyzing')}</span>
+              <span>{t('landing.ai_generating')}</span>
+              <span>{t('landing.ai_complete')}</span>
             </div>
             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
               <div className="absolute top-0 left-0 h-full w-2/3 bg-primary shadow-[0_0_10px_rgba(255,138,61,0.5)] rounded-full relative overflow-hidden">
@@ -233,36 +234,36 @@ export function LandingPage({ onStart }: LandingPageProps) {
       {/* FEATURES GRID */}
       <section className="py-32 px-6 max-w-7xl mx-auto border-t border-white/[0.03]">
         <div className="text-center mb-24">
-          <h2 className="text-4xl font-medium text-white mb-4">Features</h2>
-          <p className="text-white/40 text-lg">A complete toolkit for understanding.</p>
+          <h2 className="text-4xl font-medium text-white mb-4">{t('landing.features_title')}</h2>
+          <p className="text-white/40 text-lg">{t('landing.features_desc')}</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
-            { 
-              icon: <MessageSquare size={24} />, 
-              title: "AI Chat Box", 
-              desc: "Ask anything about the material and get clear explanations." 
+            {
+              icon: <MessageSquare size={24} />,
+              title: t('landing.feature_chat'),
+              desc: t('landing.feature_chat_desc')
             },
-            { 
-              icon: <Brain size={24} />, 
-              title: "Flashcards", 
-              desc: "Generate flashcards to learn concepts and key terms faster." 
+            {
+              icon: <Brain size={24} />,
+              title: t('landing.feature_flashcards'),
+              desc: t('landing.feature_flashcards_desc')
             },
-            { 
-              icon: <CheckCircle2 size={24} />, 
-              title: "Quizzes", 
-              desc: "Test your knowledge with AI-generated quizzes." 
+            {
+              icon: <CheckCircle2 size={24} />,
+              title: t('landing.feature_quizzes'),
+              desc: t('landing.feature_quizzes_desc')
             },
-            { 
-              icon: <Headphones size={24} />, 
-              title: "AI Podcasts", 
-              desc: "Listen to AI-generated podcasts to learn while doing other things." 
+            {
+              icon: <Headphones size={24} />,
+              title: t('landing.feature_podcasts'),
+              desc: t('landing.feature_podcasts_desc')
             },
-            { 
-              icon: <MonitorPlay size={24} />, 
-              title: "Auto Presentations", 
-              desc: "Create presentations from your material and export them as PPT or PDF." 
+            {
+              icon: <MonitorPlay size={24} />,
+              title: t('landing.feature_presentations'),
+              desc: t('landing.feature_presentations_desc')
             }
           ].map((feature, i) => (
             <motion.div 
@@ -291,7 +292,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
               <div key={i} className="w-6 h-6 rounded-full bg-white/10 border border-[#0C0C0F]" />
             ))}
           </div>
-          <span className="text-sm text-white/60 font-medium ml-2">Over 10,000 learners are already using arma.</span>
+          <span className="text-sm text-white/60 font-medium ml-2">{t('landing.social_proof')}</span>
         </div>
       </section>
 
@@ -304,13 +305,13 @@ export function LandingPage({ onStart }: LandingPageProps) {
           </div>
           
           <div className="flex items-center gap-8 text-sm text-white/40">
-            <a href="#" className="hover:text-white transition-colors">Product</a>
-            <a href="#" className="hover:text-white transition-colors">About arma</a>
-            <a href="#" onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">Pricing</a>
+            <a href="#" className="hover:text-white transition-colors">{t('landing.footer_product')}</a>
+            <a href="#" className="hover:text-white transition-colors">{t('landing.footer_about')}</a>
+            <a href="#" onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">{t('landing.footer_pricing')}</a>
           </div>
-          
+
           <div className="text-sm text-white/20">
-            © 2024 arma AI. All rights reserved.
+            {t('landing.footer_rights')}
           </div>
         </div>
       </footer>

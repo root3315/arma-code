@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { motion } from 'motion/react';
 import { FileText, Youtube, BookOpen, Search, Upload } from 'lucide-react';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface DashboardHeroProps {
   onUploadPDF: () => void;
@@ -17,6 +18,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
   onSearch,
   isUploading = false,
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const handleSearch = useCallback(() => {
@@ -47,7 +49,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
           transition={{ delay: 0.3, duration: 0.4 }}
           className="text-3xl md:text-5xl font-bold text-[#F3F3F3] mb-4"
         >
-          What will you learn today?
+          {t('hero.title')}
         </motion.h1>
 
         {/* Subtitle */}
@@ -57,7 +59,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
           transition={{ delay: 0.4, duration: 0.4 }}
           className="text-base md:text-xl text-[#9CA3AF] max-w-2xl mx-auto"
         >
-          Upload your study materials and let AI create personalized learning content
+          {t('hero.subtitle')}
         </motion.p>
       </div>
 
@@ -74,10 +76,10 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
         >
           <Upload className="w-10 h-10 text-[#9CA3AF] group-hover:text-[#FF8A3D] transition-colors mx-auto mb-4" />
           <p className="text-[#F3F3F3] font-medium mb-1">
-            Drop files here or click to browse
+            {t('hero.drop_files')}
           </p>
           <p className="text-sm text-[#9CA3AF]">
-            PDF, DOCX, TXT, RTF up to 50MB
+            {t('hero.file_types')}
           </p>
         </div>
       </motion.div>
@@ -91,7 +93,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
           className="text-center"
         >
           <p className="text-sm text-[#9CA3AF] mb-4">
-            Use search if you want to find additional materials
+            {t('hero.search_hint')}
           </p>
           <div className="relative max-w-md mx-auto">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#9CA3AF]" />
@@ -100,7 +102,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Search for topics, subjects..."
+              placeholder={t('hero.search_placeholder')}
               className="w-full pl-12 pr-4 py-2 px-6 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[#F3F3F3] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#FF8A3D]/50 focus:ring-1 focus:ring-[#FF8A3D]/50 transition-all"
             />
           </div>

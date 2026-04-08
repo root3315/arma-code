@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, CheckCircle, Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import { useFakeProgress } from '../../hooks/useProgress';
 import { PROCESSING_STAGES } from '../../utils/progressUtils';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface ProcessingModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
   onComplete,
   materialName,
 }) => {
+  const { t } = useTranslation();
   const [showComplete, setShowComplete] = useState(false);
   const shouldShowProgress = !isComplete && !isError && realProgress < 100;
 
@@ -120,10 +122,10 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
                   <div className="text-center mb-6">
                     <h2 className="text-xl font-semibold text-[#F3F3F3] mb-1">
                       {isComplete
-                        ? 'Materials Ready!'
+                        ? t('processing.ready')
                         : isError
-                        ? 'Processing Failed'
-                        : 'Building your learning space...'}
+                        ? t('processing.failed')
+                        : t('processing.building')}
                     </h2>
                     {materialName && !isComplete && !isError && (
                       <p className="text-sm text-[#9CA3AF] truncate max-w-full">{materialName}</p>
@@ -149,7 +151,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
                           {Math.round(displayProgress)}%
                         </span>
                         {!isComplete && eta > 0 && (
-                          <span className="text-[10px] text-[#9CA3AF]/60">~{eta}s remaining</span>
+                          <span className="text-[10px] text-[#9CA3AF]/60">~{eta}s {t('processing.remaining')}</span>
                         )}
                       </div>
                     </div>
@@ -182,7 +184,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
                           onClick={onClose}
                           className="inline-flex items-center gap-2 px-6 py-2.5 bg-white/[0.06] border border-white/[0.08] text-[#F3F3F3] rounded-xl hover:bg-white/[0.08] transition-colors text-sm font-medium"
                         >
-                          Close
+                          {t('processing.close')}
                         </button>
                       )}
                     </div>
@@ -197,13 +199,13 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
                       className="text-center"
                     >
                       <p className="text-xs text-emerald-400/70 mb-5">
-                        Your materials have been processed and are ready to explore
+                        {t('processing.complete_desc')}
                       </p>
                       <button
                         onClick={handleContinue}
                         className="inline-flex items-center gap-2 px-8 py-3 bg-[#FF8A3D] text-black rounded-xl font-semibold text-sm hover:bg-[#FF8A3D]/90 transition-colors shadow-[0_0_20px_rgba(255,138,61,0.2)]"
                       >
-                        Continue
+                        {t('processing.continue')}
                         <ArrowRight size={14} />
                       </button>
                     </motion.div>

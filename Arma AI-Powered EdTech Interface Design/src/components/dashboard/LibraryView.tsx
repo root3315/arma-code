@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Plus, Folder, Loader2, FolderOpen } from 'lucide-react';
 import { useProjects } from '../../hooks/useApi';
+import { useTranslation } from '../../i18n/I18nContext';
 import { projectsApi } from '../../services/api';
 import { toast } from 'sonner';
 import { ProjectCard } from './ProjectCard';
@@ -12,6 +13,7 @@ interface LibraryViewProps {
 }
 
 export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
+  const { t } = useTranslation();
   const { projects, loading, error, refetch } = useProjects();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -22,10 +24,10 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
   const handleDelete = async (projectId: string) => {
     try {
       await projectsApi.delete(projectId);
-      toast.success('Project deleted');
+      toast.success(t('library.deleted'));
       refetch();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to delete project');
+      toast.error(err.response?.data?.detail || t('library.delete_failed'));
     }
   };
 
@@ -37,7 +39,7 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
           onClick={() => refetch()}
           className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20"
         >
-          Retry
+          {t('library.retry')}
         </button>
       </div>
     );
@@ -50,15 +52,15 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
       <div className="flex flex-col gap-6 p-8 pb-4">
          <div className="flex items-end justify-between">
             <div>
-              <h1 className="text-3xl font-medium text-white tracking-tight mb-2">Projects</h1>
-              <p className="text-white/40">Manage your projects and AI-generated content.</p>
+              <h1 className="text-3xl font-medium text-white tracking-tight mb-2">{t('library.title')}</h1>
+              <p className="text-white/40">{t('library.subtitle')}</p>
             </div>
             <button
               onClick={onUpload}
               className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-xl text-sm font-bold hover:bg-white/90 transition-colors"
             >
               <Plus size={16} />
-              <span>New Project</span>
+              <span>{t('library.new_project')}</span>
             </button>
          </div>
 
@@ -70,7 +72,7 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
                  type="text"
                  value={searchQuery}
                  onChange={(e) => setSearchQuery(e.target.value)}
-                 placeholder="Search projects..."
+                 placeholder={t('library.search_placeholder')}
                  className="w-full bg-[#1A1A1E] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:border-primary/30 focus:outline-none transition-colors"
                />
             </div>
@@ -80,7 +82,7 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
               onClick={() => refetch()}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#1A1A1E] border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-colors text-xs font-medium"
             >
-              <span>Refresh</span>
+              <span>{t('library.refresh')}</span>
             </button>
          </div>
       </div>
@@ -97,17 +99,17 @@ export function LibraryView({ onProjectClick, onUpload }: LibraryViewProps) {
                  <FolderOpen className="w-8 h-8 text-white/20" />
               </div>
               <h3 className="text-lg font-medium text-white/60 mb-2">
-                {searchQuery ? 'No projects found' : 'No projects yet'}
+                {searchQuery ? t('library.no_results') : t('library.no_projects')}
               </h3>
               <p className="text-sm text-white/30 mb-6">
-                {searchQuery ? 'Try a different search term.' : 'Upload materials to create your first project.'}
+                {searchQuery ? t('library.try_different') : t('library.upload_to_create')}
               </p>
               {!searchQuery && (
                 <button
                   onClick={onUpload}
                   className="px-6 py-2.5 bg-primary text-black font-medium rounded-xl hover:bg-primary/90 transition-colors"
                 >
-                  Create your first project
+                  {t('library.create_first')}
                 </button>
               )}
            </div>
